@@ -72,3 +72,11 @@ data/output/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Environment files
+.env
+.env.local
+
+# Docker volumes
+data/
+models/
