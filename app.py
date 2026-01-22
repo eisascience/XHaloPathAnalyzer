@@ -16,6 +16,7 @@ import numpy as np
 from pathlib import Path
 import pandas as pd
 from datetime import datetime
+import traceback
 
 from config import Config
 from utils.halo_api import HaloAPI
@@ -358,7 +359,6 @@ def analysis_page():
                     
                 except Exception as e:
                     st.error(f"❌ Analysis failed: {str(e)}")
-                    import traceback
                     st.code(traceback.format_exc())
     
     with col2:
@@ -497,7 +497,6 @@ def export_page():
                 
             except Exception as e:
                 st.error(f"❌ Export failed: {str(e)}")
-                import traceback
                 st.code(traceback.format_exc())
     
     # Display and download

@@ -7,6 +7,8 @@ for import into Halo digital pathology platform.
 
 import numpy as np
 from skimage import measure
+from skimage.measure import approximate_polygon
+import cv2
 from typing import List, Dict, Tuple
 import json
 import logging
@@ -77,7 +79,6 @@ def simplify_polygon(polygon: np.ndarray, tolerance: float = 1.0) -> np.ndarray:
         Simplified polygon
     """
     try:
-        from skimage.measure import approximate_polygon
         simplified = approximate_polygon(polygon, tolerance=tolerance)
         return simplified
     except ImportError:
@@ -194,8 +195,6 @@ def geojson_to_mask(geojson: Dict, shape: Tuple[int, int]) -> np.ndarray:
     Returns:
         Binary mask (H, W)
     """
-    import cv2
-    
     mask = np.zeros(shape, dtype=np.uint8)
     
     for feature in geojson.get('features', []):
