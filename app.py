@@ -606,6 +606,127 @@ def analysis_page():
             st.image(overlay, caption="Overlay", use_container_width=True)
 
 
+def export_page():
+    """Export results to GeoJSON format"""
+    st.title("📤 Export Results")
+    
+    if st.session_state.analysis_results is None:
+        st.warning("⚠️ No analysis results to export. Please run analysis first.")
+        return
+    
+    results = st.session_state.analysis_results
+    
+    st.success(f"✅ Results ready for export from: **{results['slide_name']}**")
+    
+    # Export settings
+    st.subheader("⚙️ Export Settings")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        classification = st.text_input(
+            "Classification Label",
+            value="tissue_segmentation",
+            help="Label for the segmented regions"
+        )
+        
+        min_area = st.number_input(
+            "Minimum Polygon Area (pixels)",
+            min_value=1,
+            value=Config.MIN_POLYGON_AREA,
+            help="Filter out small polygons"
+        )
+    
+    with col2:
+        simplify = st.checkbox(
+            "Simplify Polygons",
+            value=True,
+            help="Reduce polygon complexity"
+        )
+        
+        if simplify:
+            tolerance = st.slider(
+                "Simplification Tolerance",
+                min_value=0.1,
+                max_value=5.0,
+                value=Config.SIMPLIFY_TOLERANCE,
+                help="Higher = more simplified"
+            )
+        else:
+            tolerance = 1.0
+    
+    st.markdown("---")
+    
+    if st.button("🔄 Generate GeoJSON", type="primary", use_container_width=True):
+        with st.spinner("Converting mask to GeoJSON..."):
+            try:
+                # Convert mask to polygons
+                st.info("⏳ Extracting polygons from mask...")
+                polygons = mask_to_polygons(results['mask'], min_area=min_area)
+                
+                if len(polygons) == 0:
+                    st.warning("⚠️ No polygons found. Try reducing minimum area.")
+                    return
+                
+                # Create GeoJSON
+                st.info(f"⏳ Creating GeoJSON with {len(polygons)} features...")
+                geojson = polygons_to_geojson(
+                    polygons,
+                    properties={"classification": classification}
+                )
+                
+                # Save to file
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"annotations_{results['slide_name']}_{timestamp}.geojson"
+                output_path = Config.get_temp_path(filename)
+                
+                with open(output_path, 'w') as f:
+                    json.dump(geojson, f, indent=2)
+                
+                # Store in session state
+                st.session_state.geojson = geojson
+                st.session_state.geojson_path = output_path
+                
+                st.success(f"✅ Exported {len(polygons)} polygons to GeoJSON!")
+                
+            except Exception as e:
+                st.error(f"❌ Export failed: {str(e)}")
+                st.code(traceback.format_exc())
+    
+    # Display and download
+    if 'geojson' in st.session_state:
+        st.markdown("---")
+        st.subheader("📄 GeoJSON Preview")
+        
+        # Statistics
+        num_features = len(st.session_state.geojson['features'])
+        st.metric("Number of Features", num_features)
+        
+        # Preview
+        with st.expander("View GeoJSON"):
+            st.json(st.session_state.geojson)
+        
+        # Download button
+        with open(st.session_state.geojson_path, 'r') as f:
+            geojson_str = f.read()
+        
+        st.download_button(
+            label="💾 Download GeoJSON",
+            data=geojson_str,
+            file_name=st.session_state.geojson_path.name,
+            mime="application/json",
+            use_container_width=True
+        )
+        
+        st.info("""
+        **Next Steps:**
+        1. Download the GeoJSON file
+        2. Open your slide in Halo (or view in GIS software)
+        3. Import the GeoJSON as annotations
+        4. Visualize and refine results
+        """)
+
+
 def import_page():
     """Import annotations to Halo (optional feature)"""
     st.title("📥 Import to Halo")
