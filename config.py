@@ -33,6 +33,9 @@ class Config:
     HALO_API_ENDPOINT = os.getenv("HALO_API_ENDPOINT", "")
     HALO_API_TOKEN = os.getenv("HALO_API_TOKEN", "")
     
+    # Local Mode (bypass Halo API requirement)
+    LOCAL_MODE = os.getenv("LOCAL_MODE", "false").lower() == "true"
+    
     # Model Settings
     MEDSAM_CHECKPOINT = os.getenv("MEDSAM_CHECKPOINT", "./models/medsam_vit_b.pth")
     MODEL_TYPE = os.getenv("MODEL_TYPE", "vit_b")  # vit_b, vit_l, vit_h
@@ -77,20 +80,24 @@ class Config:
         SIMPLIFY_TOLERANCE = 1.0
     
     @classmethod
-    def validate(cls):
+    def validate(cls, require_halo_api=True):
         """
         Validate required configuration settings.
+        
+        Args:
+            require_halo_api: If False, skip Halo API validation (for local mode)
         
         Raises:
             ValueError: If required settings are missing or invalid
         """
         errors = []
         
-        # Check required settings
-        if not cls.HALO_API_ENDPOINT:
-            errors.append("HALO_API_ENDPOINT is required")
-        if not cls.HALO_API_TOKEN:
-            errors.append("HALO_API_TOKEN is required")
+        # Check required settings (only if not in local mode)
+        if require_halo_api and not cls.LOCAL_MODE:
+            if not cls.HALO_API_ENDPOINT:
+                errors.append("HALO_API_ENDPOINT is required")
+            if not cls.HALO_API_TOKEN:
+                errors.append("HALO_API_TOKEN is required")
         
         # Check model checkpoint exists
         if not Path(cls.MEDSAM_CHECKPOINT).exists():

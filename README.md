@@ -6,13 +6,35 @@ A comprehensive, OS-agnostic application for custom image analysis on whole-slid
 
 ## Features
 
-- 🔐 **Secure Authentication**: Connect to Halo via GraphQL API
-- 🔬 **Slide Management**: Browse, search, and select slides
-- 🤖 **AI Analysis**: MedSAM segmentation on regions of interest
+- 🔐 **Secure Authentication**: Connect to Halo via GraphQL API **OR** use Local Mode
+- 📁 **Local Image Upload**: Upload JPG, PNG, TIFF images directly without Halo connection
+- 🔬 **Slide Management**: Browse, search, and select slides from Halo (API mode)
+- 🤖 **AI Analysis**: MedSAM segmentation on regions of interest or uploaded images
 - 📊 **Visualization**: Side-by-side comparison and overlay views
 - 📤 **GeoJSON Export**: Convert results to Halo-compatible annotations
 - 🖥️ **Cross-Platform**: Works on Windows, macOS, and Linux
 - 🚀 **GPU Accelerated**: Automatic CUDA detection and optimization
+
+## Usage Modes
+
+XHaloPathAnalyzer supports two operating modes:
+
+### 1. 🌐 Halo API Mode (Default)
+- Connect to your Halo digital pathology platform
+- Browse and select slides from your Halo repository
+- Download regions of interest for analysis
+- Export results back to Halo
+
+### 2. 📁 Local Image Upload Mode (NEW!)
+- **No Halo connection required**
+- Upload images directly (JPG, PNG, TIFF)
+- Analyze single or batch images
+- Export segmentation masks and GeoJSON
+- Perfect for:
+  - Quick analysis of local images
+  - Testing without Halo access
+  - Batch processing workflows
+  - Standalone image analysis
 
 ## Quick Start
 
@@ -107,6 +129,19 @@ streamlit run app.py
 
 # Open browser to http://localhost:8501
 ```
+
+## Using Local Mode
+
+If you want to analyze images without connecting to Halo:
+
+1. **Start the application**: `streamlit run app.py`
+2. **Select Mode**: Choose "📁 Local Image Upload Mode" on the authentication page
+3. **Upload Images**: Navigate to the "Image Upload" page and upload your JPG/PNG/TIFF files
+4. **Select Image**: Choose which image to analyze
+5. **Run Analysis**: Go to the "Analysis" page and click "Run Analysis"
+6. **Export Results**: Download segmentation masks and GeoJSON from the "Export" page
+
+**Note**: Local mode does not require Halo API credentials or the `.env` file configuration.
 
 # 🔬 XHalo Path Analyzer
 
