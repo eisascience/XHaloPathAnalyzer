@@ -5,7 +5,7 @@ Compatible with Halo's annotation format
 
 import numpy as np
 import cv2
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 import geojson
 from shapely.geometry import shape, Polygon, MultiPolygon
 from shapely.ops import unary_union
