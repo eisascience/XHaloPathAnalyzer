@@ -37,10 +37,10 @@ pip install uv
 
 ```bash
 # Create virtual environment with uv
-uv venv
+uv venv_xhpa_v1
 
 # Activate virtual environment
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv_xhpa_v1/bin/activate  # On Windows: .venv_xhpa_v1\Scripts\activate
 
 # Install packages with uv (much faster than pip!)
 uv pip install -r requirements.txt
@@ -60,8 +60,8 @@ brew install openslide
 
 ```bash
 # Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python3 -m venv venv_xhpa_v1
+source venv_xhpa_v1/bin/activate  # On Windows: venv_xhpa_v1\Scripts\activate
 
 # Install packages
 pip install -r requirements.txt
