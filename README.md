@@ -16,7 +16,48 @@ A comprehensive, OS-agnostic application for custom image analysis on whole-slid
 
 ## Quick Start
 
-### 1. Install Dependencies
+### 1. Install uv (Recommended for Mac/M2)
+
+[uv](https://docs.astral.sh/uv/) is a fast Python package installer that works great on all platforms, especially Mac M2/ARM.
+
+```bash
+# Install uv (Mac/Linux)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Or using Homebrew on macOS
+brew install uv
+
+# Or using pip
+pip install uv
+```
+
+### 2. Install Dependencies
+
+#### Option A: Using uv (Recommended for Mac M2/ARM)
+
+```bash
+# Create virtual environment with uv
+uv venv
+
+# Activate virtual environment
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install packages with uv (much faster than pip!)
+uv pip install -r requirements.txt
+
+# Install OpenSlide (platform-specific)
+# macOS (including M2/ARM): 
+brew install openslide
+
+# Ubuntu: 
+# sudo apt-get install openslide-tools
+
+# Windows: 
+# Download from https://openslide.org/download/
+```
+
+#### Option B: Using traditional pip
+
 ```bash
 # Create virtual environment
 python3 -m venv venv
@@ -31,15 +72,26 @@ pip install -r requirements.txt
 # Windows: Download from https://openslide.org/download/
 ```
 
-### 2. Download MedSAM Model
+**Note for Mac M2/ARM users:** 
+- uv handles ARM architecture dependencies automatically
+- PyTorch will install the correct ARM64 version
+- If you encounter any issues, ensure you're using Python 3.9+ for best M2 compatibility
+
+### 3. Download MedSAM Model
 ```bash
 # Create models directory and download checkpoint (1.7GB)
 mkdir -p models
+
+# Option A: Using wget (if available)
 wget -O models/medsam_vit_b.pth \
+  https://zenodo.org/record/8408663/files/medsam_vit_b.pth
+
+# Option B: Using curl (default on macOS)
+curl -L -o models/medsam_vit_b.pth \
   https://zenodo.org/record/8408663/files/medsam_vit_b.pth
 ```
 
-### 3. Configure Environment
+### 4. Configure Environment
 ```bash
 # Copy example environment file
 cp .env.example .env
@@ -48,7 +100,7 @@ cp .env.example .env
 nano .env
 ```
 
-### 4. Run Application
+### 5. Run Application
 ```bash
 # Start Streamlit app
 streamlit run app.py
@@ -112,8 +164,9 @@ Built for exploratory AI in digital pathology, this tool provides a flexible, in
 
 ### Prerequisites
 
-- Python 3.8 or higher
-- pip package manager
+- Python 3.8 or higher (3.9+ recommended for Mac M2/ARM)
+- [uv](https://docs.astral.sh/uv/) (recommended) or pip package manager
+- [Homebrew](https://brew.sh/) (for Mac users, to install OpenSlide)
 - (Optional) CUDA-capable GPU for faster inference
 
 ### Quick Start
@@ -124,20 +177,74 @@ git clone https://github.com/eisascience/XHaloPathAnalyzer.git
 cd XHaloPathAnalyzer
 ```
 
-2. **Create a virtual environment (recommended)**
+2. **Install uv (Recommended for Mac M2/ARM)**
+```bash
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Or via Homebrew (macOS)
+brew install uv
+
+# Or via pip
+pip install uv
+```
+
+3. **Create a virtual environment**
+
+**Using uv (faster, recommended):**
+```bash
+uv venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+```
+
+**Using traditional venv:**
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-3. **Install dependencies**
+4. **Install dependencies**
+
+**Using uv (faster, especially on Mac M2):**
 ```bash
-pip install -r requirements.txt
+uv pip install -r requirements.txt
+uv pip install -e .
 ```
 
-4. **Install the package**
+**Using pip:**
 ```bash
+pip install -r requirements.txt
 pip install -e .
+```
+
+5. **Install OpenSlide (Required for WSI processing)**
+```bash
+# macOS (including M2/ARM)
+brew install openslide
+
+# Ubuntu/Debian
+sudo apt-get install openslide-tools
+
+# Windows
+# Download from https://openslide.org/download/
+```
+
+### Mac M2/ARM Specific Notes
+
+- **Python Version**: Use Python 3.9 or higher for best M2 compatibility
+- **PyTorch**: The ARM64 version will be installed automatically
+- **OpenSlide**: Install via Homebrew (`brew install openslide`)
+- **uv Benefits**: uv handles ARM dependencies much better than pip
+- **Architecture Check**: Run `uname -m` (should show `arm64` on M2)
+
+If you encounter issues on M2:
+```bash
+# Verify you're using ARM Python (not Rosetta)
+python -c "import platform; print(platform.machine())"
+# Should output: arm64
+
+# If it shows x86_64, install native ARM Python:
+brew install python@3.11
 ```
 
 ## Usage

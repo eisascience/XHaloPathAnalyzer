@@ -130,6 +130,22 @@ XHaloPathAnalyzer/
 # Navigate to project directory
 cd XHaloPathAnalyzer
 
+# Option A: Using uv (Recommended, especially for Mac M2/ARM)
+# Install uv first if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh  # macOS/Linux
+# Or: brew install uv  # macOS via Homebrew
+
+# Create virtual environment with uv
+uv venv
+
+# Activate virtual environment
+source .venv/bin/activate  # macOS/Linux
+# Or: .venv\Scripts\activate  # Windows
+
+# Install dependencies with uv (much faster!)
+uv pip install -r requirements.txt
+
+# Option B: Using traditional Python venv
 # Create virtual environment
 python3 -m venv venv
 
@@ -138,16 +154,13 @@ python3 -m venv venv
 source venv/bin/activate
 # Windows:
 venv\Scripts\activate
-```
 
-#### Install Core Libraries
-```bash
-# Upgrade pip
+# Upgrade pip and install dependencies
 pip install --upgrade pip
-
-# Install dependencies (see requirements.txt below)
 pip install -r requirements.txt
 ```
+
+**Mac M2/ARM Users:** Use uv for best compatibility with ARM architecture. It automatically handles ARM64 dependencies including PyTorch.
 
 ### 3.2 Library Installation
 
@@ -225,7 +238,9 @@ LOG_LEVEL=INFO
 
 ### 3.5 OpenSlide Installation (OS-Specific)
 
-**macOS**:
+OpenSlide is required for processing whole-slide images.
+
+**macOS (including M2/ARM)**:
 ```bash
 brew install openslide
 ```
@@ -237,6 +252,8 @@ sudo apt-get install openslide-tools python3-openslide
 
 **Windows**:
 Download pre-built binaries from: https://openslide.org/download/
+
+**Note for Mac M2/ARM users**: Homebrew handles ARM architecture automatically. The openslide formula is fully compatible with Apple Silicon.
 
 ---
 
