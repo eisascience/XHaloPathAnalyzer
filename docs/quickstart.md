@@ -4,8 +4,9 @@ Get up and running with XHalo Path Analyzer in 5 minutes!
 
 ## Prerequisites
 
-- Python 3.8 or higher
-- pip package manager
+- Python 3.8 or higher (3.9+ recommended for Mac M2/ARM)
+- [uv](https://docs.astral.sh/uv/) (recommended) or pip package manager
+- [Homebrew](https://brew.sh/) (for Mac users, to install OpenSlide)
 - (Optional) CUDA-capable GPU for faster inference
 
 ## Installation
@@ -17,19 +18,61 @@ git clone https://github.com/eisascience/XHaloPathAnalyzer.git
 cd XHaloPathAnalyzer
 ```
 
-### 2. Create Virtual Environment (Recommended)
+### 2. Install uv (Recommended, especially for Mac M2/ARM)
 
+```bash
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Or via Homebrew (macOS)
+brew install uv
+
+# Or via pip
+pip install uv
+```
+
+### 3. Create Virtual Environment
+
+**Using uv (faster, recommended):**
+```bash
+uv venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+```
+
+**Using traditional venv:**
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-### 3. Install Dependencies
+### 4. Install Dependencies
 
+**Using uv (much faster):**
+```bash
+uv pip install -r requirements.txt
+uv pip install -e .
+```
+
+**Using pip:**
 ```bash
 pip install -r requirements.txt
 pip install -e .
 ```
+
+### 5. Install OpenSlide (Required for WSI processing)
+
+```bash
+# macOS (including M2/ARM)
+brew install openslide
+
+# Ubuntu/Debian
+sudo apt-get install openslide-tools
+
+# Windows
+# Download from https://openslide.org/download/
+```
+
+**Mac M2/ARM Note:** uv handles ARM architecture dependencies automatically, and PyTorch will install the correct ARM64 version.
 
 ## Running the Application
 
