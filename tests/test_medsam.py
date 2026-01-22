@@ -27,11 +27,23 @@ class TestMedSAMPredictor:
     
     def test_predictor_with_model_path(self):
         """Test predictor initialization with model path"""
-        # This will use mock model since we don't have actual checkpoint
-        predictor = MedSAMPredictor(model_path="/tmp/fake_model.pth", device="cpu")
+        import tempfile
+        import os
         
-        assert predictor.model_path == "/tmp/fake_model.pth"
-        assert predictor.device == "cpu"
+        # Use a temporary file path that works on all platforms
+        with tempfile.NamedTemporaryFile(suffix='.pth', delete=False) as f:
+            fake_model_path = f.name
+        
+        try:
+            # This will use mock model since we don't have actual checkpoint
+            predictor = MedSAMPredictor(model_path=fake_model_path, device="cpu")
+            
+            assert predictor.model_path == fake_model_path
+            assert predictor.device == "cpu"
+        finally:
+            # Clean up
+            if os.path.exists(fake_model_path):
+                os.unlink(fake_model_path)
     
     def test_preprocess_image(self):
         """Test image preprocessing"""
