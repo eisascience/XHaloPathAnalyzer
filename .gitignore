@@ -16,20 +16,17 @@ parts/
 sdist/
 var/
 wheels/
-pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
-# Virtual environments
+# Virtual Environment
 venv/
 ENV/
 env/
 .venv
 
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
@@ -37,6 +34,23 @@ env/
 *~
 .DS_Store
 
+# Environment variables
+.env
+.env.local
+
+# Temporary files
+temp/
+*.tmp
+*.log
+
+# Model weights
+models/*.pth
+models/*.ckpt
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pytest
 # Streamlit
 .streamlit/secrets.toml
 
@@ -73,6 +87,14 @@ data/output/
 .coverage
 htmlcov/
 
+# Streamlit
+.streamlit/
+
+# Data files
+*.tif
+*.tiff
+*.svs
+*.ndpi
 # Environment files
 .env
 .env.local
