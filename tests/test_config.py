@@ -70,13 +70,22 @@ class TestConfigValidation:
     """Test configuration validation"""
     
     def test_validate_with_missing_api_endpoint(self):
-        """Test validation fails with missing API endpoint"""
+        """Test validation fails with missing API endpoint when require_halo_api=True"""
         with patch.object(Config, 'HALO_API_ENDPOINT', ''):
             with patch.object(Config, 'HALO_API_TOKEN', ''):
-                with pytest.raises(ValueError) as exc_info:
-                    Config.validate()
-                
-                assert "HALO_API_ENDPOINT" in str(exc_info.value)
+                with patch.object(Config, 'LOCAL_MODE', False):
+                    with pytest.raises(ValueError) as exc_info:
+                        Config.validate(require_halo_api=True)
+                    
+                    assert "HALO_API_ENDPOINT" in str(exc_info.value)
+    
+    def test_validate_in_local_mode(self):
+        """Test validation passes in local mode without API credentials"""
+        with patch.object(Config, 'HALO_API_ENDPOINT', ''):
+            with patch.object(Config, 'HALO_API_TOKEN', ''):
+                with patch.object(Config, 'LOCAL_MODE', True):
+                    # Should not raise an error
+                    Config.validate(require_halo_api=False)
     
     def test_validate_with_invalid_max_image_size(self):
         """Test validation fails with invalid max image size"""
@@ -97,9 +106,8 @@ class TestConfigValidation:
         """Test that validate creates necessary directories"""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.object(Config, 'TEMP_DIR', tmpdir):
-                with patch.object(Config, 'HALO_API_ENDPOINT', 'http://test'):
-                    with patch.object(Config, 'HALO_API_TOKEN', 'test-token'):
-                        Config.validate()
+                with patch.object(Config, 'LOCAL_MODE', True):
+                    Config.validate(require_halo_api=False)
                 
                 # Temp dir should exist
                 assert os.path.exists(tmpdir)
