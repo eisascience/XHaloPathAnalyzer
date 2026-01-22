@@ -302,11 +302,15 @@ def analysis_page():
         if st.button("🚀 Run Analysis", type="primary", use_container_width=True):
             with st.spinner("Processing..."):
                 try:
-                    # Download region
-                    st.info("⏳ Downloading region from Halo...")
+                    # Download region (note: this is a blocking operation)
+                    st.info("⏳ Downloading region from Halo... This may take a moment for large regions.")
                     region_data = st.session_state.api.download_region(
                         slide['id'], x, y, width, height
                     )
+                    
+                    if not region_data:
+                        st.error("❌ Failed to download region - no data received")
+                        return
                     
                     # Load image
                     st.info("⏳ Loading image...")

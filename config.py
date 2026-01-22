@@ -38,20 +38,43 @@ class Config:
     MODEL_TYPE = os.getenv("MODEL_TYPE", "vit_b")  # vit_b, vit_l, vit_h
     
     # Application Settings
-    MAX_IMAGE_SIZE_MB = int(os.getenv("MAX_IMAGE_SIZE_MB", "500"))
+    try:
+        MAX_IMAGE_SIZE_MB = int(os.getenv("MAX_IMAGE_SIZE_MB", "500"))
+    except ValueError:
+        logger.error("MAX_IMAGE_SIZE_MB must be a number, using default: 500")
+        MAX_IMAGE_SIZE_MB = 500
+    
     TEMP_DIR = os.getenv("TEMP_DIR", "./temp")
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
     
     # Image Processing Settings
-    DEFAULT_TARGET_SIZE = int(os.getenv("DEFAULT_TARGET_SIZE", "1024"))
-    JPEG_QUALITY = int(os.getenv("JPEG_QUALITY", "95"))
+    try:
+        DEFAULT_TARGET_SIZE = int(os.getenv("DEFAULT_TARGET_SIZE", "1024"))
+    except ValueError:
+        logger.error("DEFAULT_TARGET_SIZE must be a number, using default: 1024")
+        DEFAULT_TARGET_SIZE = 1024
+    
+    try:
+        JPEG_QUALITY = int(os.getenv("JPEG_QUALITY", "95"))
+    except ValueError:
+        logger.error("JPEG_QUALITY must be a number, using default: 95")
+        JPEG_QUALITY = 95
     
     # Device Configuration (automatically detect CUDA)
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     
     # GeoJSON Settings
-    MIN_POLYGON_AREA = int(os.getenv("MIN_POLYGON_AREA", "100"))
-    SIMPLIFY_TOLERANCE = float(os.getenv("SIMPLIFY_TOLERANCE", "1.0"))
+    try:
+        MIN_POLYGON_AREA = int(os.getenv("MIN_POLYGON_AREA", "100"))
+    except ValueError:
+        logger.error("MIN_POLYGON_AREA must be a number, using default: 100")
+        MIN_POLYGON_AREA = 100
+    
+    try:
+        SIMPLIFY_TOLERANCE = float(os.getenv("SIMPLIFY_TOLERANCE", "1.0"))
+    except ValueError:
+        logger.error("SIMPLIFY_TOLERANCE must be a number, using default: 1.0")
+        SIMPLIFY_TOLERANCE = 1.0
     
     @classmethod
     def validate(cls):

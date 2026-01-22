@@ -78,6 +78,11 @@ def pad_to_square(image: np.ndarray, target_size: int = 1024) -> Tuple[np.ndarra
     """
     h, w = image.shape[:2]
     
+    # Handle case where image is already larger than target
+    if h > target_size or w > target_size:
+        logger.warning(f"Image {h}x{w} larger than target {target_size}. Consider resizing first.")
+        return image, (0, 0, 0, 0)
+    
     pad_h = target_size - h
     pad_w = target_size - w
     

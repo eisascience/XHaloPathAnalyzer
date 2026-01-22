@@ -29,7 +29,12 @@ class MedSAMPredictor:
             model_type: Model architecture (vit_b, vit_l, vit_h)
             device: Device to run inference on (cuda or cpu)
         """
-        self.device = device if torch.cuda.is_available() else "cpu"
+        # Respect user's device choice, only fall back to CPU if CUDA requested but unavailable
+        if device == "cuda" and not torch.cuda.is_available():
+            logger.warning("CUDA requested but not available, falling back to CPU")
+            self.device = "cpu"
+        else:
+            self.device = device
         self.model_type = model_type
         
         try:
