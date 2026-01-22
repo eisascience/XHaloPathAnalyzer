@@ -8,6 +8,7 @@ import asyncio
 import numpy as np
 from PIL import Image
 import io
+import json
 import logging
 from typing import Optional, List, Dict, Any
 
@@ -356,7 +357,6 @@ def export_tab(params: Dict[str, Any]):
                     st.json(geojson_data, expanded=False)
                     
                     # Download button
-                    import json
                     json_str = json.dumps(geojson_data, indent=2)
                     st.download_button(
                         label="⬇️ Download GeoJSON",

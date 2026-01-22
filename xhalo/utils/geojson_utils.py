@@ -7,6 +7,7 @@ import numpy as np
 import cv2
 from typing import List, Dict, Any, Tuple, Optional
 import geojson
+import json
 from shapely.geometry import shape, Polygon, MultiPolygon
 from shapely.ops import unary_union
 import logging
@@ -224,8 +225,6 @@ def save_geojson(geojson_data: Dict[str, Any], output_path: str):
         geojson_data: GeoJSON dictionary
         output_path: Output file path
     """
-    import json
-    
     with open(output_path, 'w') as f:
         json.dump(geojson_data, f, indent=2)
     
@@ -242,8 +241,6 @@ def load_geojson(input_path: str) -> Dict[str, Any]:
     Returns:
         GeoJSON dictionary
     """
-    import json
-    
     with open(input_path, 'r') as f:
         geojson_data = json.load(f)
     
