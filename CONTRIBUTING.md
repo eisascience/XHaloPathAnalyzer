@@ -132,6 +132,22 @@ def test_function_name():
 ## Development Setup
 
 1. **Clone and install in development mode**
+
+   **Using uv (Recommended for Mac M2/ARM):**
+   ```bash
+   git clone https://github.com/eisascience/XHaloPathAnalyzer.git
+   cd XHaloPathAnalyzer
+   
+   # Install uv if not already installed
+   curl -LsSf https://astral.sh/uv/install.sh | sh  # or: brew install uv
+   
+   # Create virtual environment and install
+   uv venv
+   source .venv/bin/activate
+   uv pip install -e ".[dev]"
+   ```
+   
+   **Using pip:**
    ```bash
    git clone https://github.com/eisascience/XHaloPathAnalyzer.git
    cd XHaloPathAnalyzer
@@ -140,6 +156,11 @@ def test_function_name():
 
 2. **Install pre-commit hooks (optional)**
    ```bash
+   # Using uv
+   uv pip install pre-commit
+   pre-commit install
+   
+   # Or using pip
    pip install pre-commit
    pre-commit install
    ```
