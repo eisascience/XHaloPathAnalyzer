@@ -25,7 +25,7 @@ class TestConfig:
     def test_device_configuration(self):
         """Test device configuration"""
         device = Config.DEVICE
-        assert device in ["cpu", "cuda"]
+        assert device in ["cpu", "cuda", "mps"]
     
     def test_temp_dir_exists(self):
         """Test temp directory configuration"""

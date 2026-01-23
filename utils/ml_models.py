@@ -27,11 +27,19 @@ class MedSAMPredictor:
         Args:
             checkpoint_path: Path to model checkpoint file
             model_type: Model architecture (vit_b, vit_l, vit_h)
-            device: Device to run inference on (cuda or cpu)
+            device: Device to run inference on (cuda, mps, or cpu)
         """
-        # Respect user's device choice, only fall back to CPU if CUDA requested but unavailable
+        # Respect user's device choice, only fall back if requested device unavailable
         if device == "cuda" and not torch.cuda.is_available():
-            logger.warning("CUDA requested but not available, falling back to CPU")
+            # Check for MPS as fallback
+            if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                logger.warning("CUDA requested but not available, falling back to MPS")
+                self.device = "mps"
+            else:
+                logger.warning("CUDA requested but not available, falling back to CPU")
+                self.device = "cpu"
+        elif device == "mps" and not (hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()):
+            logger.warning("MPS requested but not available, falling back to CPU")
             self.device = "cpu"
         else:
             self.device = device

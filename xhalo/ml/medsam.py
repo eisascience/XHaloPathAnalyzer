@@ -26,9 +26,18 @@ class MedSAMPredictor:
         
         Args:
             model_path: Path to MedSAM model checkpoint
-            device: Device to run inference on (cuda/cpu)
+            device: Device to run inference on (cuda/mps/cpu)
         """
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        # Auto-detect best available device
+        if device is None:
+            if torch.cuda.is_available():
+                self.device = "cuda"
+            elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                self.device = "mps"
+            else:
+                self.device = "cpu"
+        else:
+            self.device = device
         self.model_path = model_path
         self.model = None
         

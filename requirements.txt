@@ -16,6 +16,7 @@ pillow>=10.0.0
 opencv-python>=4.8.0
 
 # ML Models
+# PyTorch 2.6.0+ supports Apple Silicon (MPS), CUDA, and CPU
 torch==2.6.0
 torchvision==0.21.0
 # Pin segment-anything to specific commit for reproducibility
