@@ -22,8 +22,8 @@ geojson>=3.0.0
 shapely>=2.0.0
 
 # ML
-torch>=2.0.0
-torchvision>=0.15.0
+torch==2.5.1
+torchvision==0.20.1
 segment-anything @ git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588
 
 # Utilities

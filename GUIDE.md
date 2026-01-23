@@ -204,11 +204,21 @@ cd MedSAM
 
 # Download pre-trained weights
 mkdir -p ../models
-wget -P ../models https://zenodo.org/record/8408663/files/medsam_vit_b.pth
+wget -P ../models https://zenodo.org/records/10689643/files/medsam_vit_b.pth?download=1
 
 # Return to project directory
 cd ..
 ```
+
+### 3.3.1 Patch Segment Anything for CPU Compatibility
+
+After installing dependencies, apply the patch to ensure CUDA checkpoints load on CPU machines:
+
+```bash
+python patch_segment_anything.py
+```
+
+This modifies `segment_anything/build_sam.py` to add `map_location="cpu"` to torch.load() calls.
 
 ### 3.4 Environment Variable Configuration
 
@@ -1474,7 +1484,7 @@ COPY . .
 # Download model weights
 RUN mkdir -p models && \
     wget -O models/medsam_vit_b.pth \
-    https://zenodo.org/record/8408663/files/medsam_vit_b.pth
+    https://zenodo.org/records/10689643/files/medsam_vit_b.pth?download=1
 
 # Expose Streamlit port
 EXPOSE 8501

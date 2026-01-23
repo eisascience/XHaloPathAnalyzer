@@ -16,8 +16,8 @@ pillow>=10.0.0
 opencv-python>=4.8.0
 
 # ML Models
-torch>=2.0.0
-torchvision>=0.15.0
+torch==2.5.1
+torchvision==0.20.1
 # Pin segment-anything to specific commit for reproducibility
 segment-anything @ git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588
 
@@ -35,8 +35,8 @@ large-image-source-openslide>=1.24.0
 pillow>=10.0.0
 numpy>=1.24.0
 opencv-python>=4.8.0
-torch>=2.0.0
-torchvision>=0.15.0
+torch==2.5.1
+torchvision==0.20.1
 scikit-image>=0.21.0
 matplotlib>=3.7.0
 geojson>=3.0.0
