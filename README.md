@@ -69,7 +69,7 @@ source venv_xhpa_v1/bin/activate  # On Windows: venv_xhpa_v1\Scripts\activate
 python -V
 
 # Install packages with uv (much faster than pip!)
-uv pip install -r requirements.txt
+uv pip install -r requirements-uv.txt
 
 # Install OpenSlide (platform-specific)
 # macOS (including M2/ARM): 
@@ -248,7 +248,7 @@ source venv_xhpa_v1/bin/activate  # On Windows: venv_xhpa_v1\Scripts\activate
 
 **Using uv (faster, especially on Mac M2):**
 ```bash
-uv pip install -r requirements.txt
+uv pip install -r requirements-uv.txt
 uv pip install -e .
 ```
 
