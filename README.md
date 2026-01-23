@@ -58,14 +58,18 @@ pip install uv
 #### Option A: Using uv (Recommended for Mac M2/ARM)
 
 ```bash
-# Create virtual environment with uv
-uv venv venv_xhpa_v1
+# Create virtual environment with Python 3.11 using uv
+# Note: Requires Python 3.11 to be installed on your system
+uv venv -p 3.11 venv_xhpa_v1
 
 # Activate virtual environment
 source venv_xhpa_v1/bin/activate  # On Windows: venv_xhpa_v1\Scripts\activate
 
+# Verify Python version (should be 3.11.x)
+python -V
+
 # Install packages with uv (much faster than pip!)
-uv pip install -r requirements.txt
+uv pip install -r requirements-uv.txt
 
 # Install OpenSlide (platform-specific)
 # macOS (including M2/ARM): 
@@ -228,8 +232,10 @@ pip install uv
 
 **Using uv (faster, recommended):**
 ```bash
-uv venv venv_xhpa_v1
+# Requires Python 3.11 to be installed on your system
+uv venv -p 3.11 venv_xhpa_v1
 source venv_xhpa_v1/bin/activate  # On Windows: venv_xhpa_v1\Scripts\activate
+python -V  # should be 3.11.x
 ```
 
 **Using traditional venv:**
@@ -242,7 +248,7 @@ source venv_xhpa_v1/bin/activate  # On Windows: venv_xhpa_v1\Scripts\activate
 
 **Using uv (faster, especially on Mac M2):**
 ```bash
-uv pip install -r requirements.txt
+uv pip install -r requirements-uv.txt
 uv pip install -e .
 ```
 
