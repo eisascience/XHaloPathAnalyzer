@@ -34,6 +34,7 @@ def _safe_load_state_dict(path: str):
     load_kwargs = {"map_location": torch.device("cpu")}
 
     # Try weights_only=True when supported (newer PyTorch). Fallbacks keep it compatible.
+    sd = None
     try:
         sd = torch.load(path, **load_kwargs, weights_only=True)
     except TypeError:
@@ -41,6 +42,7 @@ def _safe_load_state_dict(path: str):
         sd = torch.load(path, **load_kwargs)
     except Exception:
         # If weights_only=True fails for some other reason (e.g., pickle error), fall back
+        # First try weights_only=False, which is safer than no parameter on newer PyTorch
         try:
             sd = torch.load(path, **load_kwargs, weights_only=False)
         except TypeError:
