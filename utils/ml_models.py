@@ -109,13 +109,8 @@ class MedSAMPredictor:
             Loaded model
         """
         try:
-            # Choose runtime device (MPS is common on Apple Silicon)
-            if torch.cuda.is_available():
-                device = torch.device("cuda")
-            elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
-                device = torch.device("mps")
-            else:
-                device = torch.device("cpu")
+            # Use the device that was already determined and validated in __init__
+            device = torch.device(self.device)
 
             # IMPORTANT: build WITHOUT checkpoint to avoid internal torch.load(...)
             model = sam_model_registry[model_type](checkpoint=None)
@@ -125,9 +120,6 @@ class MedSAMPredictor:
 
             model.to(device)
             model.eval()
-            
-            # Update self.device to match the actual device used
-            self.device = str(device)
             
             return model
 
