@@ -30,7 +30,11 @@ class MedSAMPredictor:
             device: Device to run inference on (cuda, mps, or cpu)
         """
         # Respect user's device choice, only fall back if requested device unavailable
-        if device == "cuda" and not torch.cuda.is_available():
+        valid_devices = ["cuda", "mps", "cpu"]
+        if device not in valid_devices:
+            logger.warning(f"Invalid device '{device}' specified. Valid devices: {valid_devices}. Falling back to CPU")
+            self.device = "cpu"
+        elif device == "cuda" and not torch.cuda.is_available():
             # Check for MPS as fallback
             if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
                 logger.warning("CUDA requested but not available, falling back to MPS")

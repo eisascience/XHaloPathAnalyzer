@@ -37,7 +37,20 @@ class MedSAMPredictor:
             else:
                 self.device = "cpu"
         else:
-            self.device = device
+            # Validate device string
+            valid_devices = ["cuda", "mps", "cpu"]
+            if device not in valid_devices:
+                logger.warning(f"Invalid device '{device}' specified. Valid devices: {valid_devices}. Falling back to CPU")
+                self.device = "cpu"
+            # Validate and fallback if requested device is not available
+            elif device == "cuda" and not torch.cuda.is_available():
+                logger.warning("CUDA requested but not available, falling back to CPU")
+                self.device = "cpu"
+            elif device == "mps" and not (hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()):
+                logger.warning("MPS requested but not available, falling back to CPU")
+                self.device = "cpu"
+            else:
+                self.device = device
         self.model_path = model_path
         self.model = None
         
