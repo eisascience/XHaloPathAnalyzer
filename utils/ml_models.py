@@ -14,6 +14,45 @@ from config import is_mps_available
 logger = logging.getLogger(__name__)
 
 
+def _safe_load_state_dict(path: str):
+    """
+    Safely load model state dict from checkpoint file.
+    
+    Handles various PyTorch versions and checkpoint formats:
+    - Always loads to CPU first to avoid CUDA-deserialize errors
+    - Tries weights_only=True for newer PyTorch versions
+    - Falls back for older PyTorch versions without weights_only parameter
+    - Handles common checkpoint wrapper formats (state_dict, model, model_state_dict)
+    
+    Args:
+        path: Path to checkpoint file
+        
+    Returns:
+        State dict ready to load into model
+    """
+    # Always load to CPU first to avoid CUDA-deserialize errors.
+    load_kwargs = {"map_location": torch.device("cpu")}
+
+    # Try weights_only=True when supported (newer PyTorch). Fallbacks keep it compatible.
+    try:
+        sd = torch.load(path, **load_kwargs, weights_only=True)
+    except TypeError:
+        # Older torch doesn't have weights_only
+        sd = torch.load(path, **load_kwargs)
+    except Exception:
+        # If weights_only=True fails for some reason, fall back
+        sd = torch.load(path, **load_kwargs, weights_only=False)
+
+    # Handle common checkpoint wrappers
+    if isinstance(sd, dict):
+        for k in ("state_dict", "model", "model_state_dict"):
+            if k in sd and isinstance(sd[k], dict):
+                sd = sd[k]
+                break
+
+    return sd
+
+
 class MedSAMPredictor:
     """
     Wrapper for MedSAM model inference.
@@ -70,12 +109,26 @@ class MedSAMPredictor:
             Loaded model
         """
         try:
-            # Load SAM model
-            model = sam_model_registry[model_type](checkpoint=checkpoint_path)
-            model.to(self.device)
+            # Choose runtime device (MPS is common on Apple Silicon)
+            if torch.cuda.is_available():
+                device = torch.device("cuda")
+            elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+                device = torch.device("mps")
+            else:
+                device = torch.device("cpu")
+
+            # IMPORTANT: build WITHOUT checkpoint to avoid internal torch.load(...)
+            model = sam_model_registry[model_type](checkpoint=None)
+
+            state_dict = _safe_load_state_dict(checkpoint_path)
+            model.load_state_dict(state_dict)
+
+            model.to(device)
+            model.eval()
             return model
+
         except Exception as e:
-            logger.error(f"Error loading model: {str(e)}")
+            logger.error(f"Error loading model: {e}")
             raise
     
     @torch.no_grad()
