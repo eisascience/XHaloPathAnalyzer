@@ -46,16 +46,15 @@ def patch_build_sam(segment_anything_path):
     
     # Pattern to match torch.load with weights_only parameter
     # Looking for: state_dict = torch.load(f, weights_only=False)
-    # This pattern is flexible with whitespace but captures indentation
-    pattern = r'(\s*)(state_dict\s*=\s*torch\.load\s*\(\s*f\s*,\s*)(weights_only\s*=\s*False\s*)\)'
+    # This pattern is flexible with whitespace and captures leading indentation
+    pattern = r'^(\s*)(state_dict\s*=\s*torch\.load\s*\(\s*f\s*,\s*)(weights_only\s*=\s*False\s*)\)'
     
     # Replacement with map_location added, preserving indentation
     def replacement(match):
         indent = match.group(1)
-        prefix = match.group(2)
         return f'{indent}state_dict = torch.load(\n{indent}    f,\n{indent}    map_location="cpu",\n{indent}    weights_only=False\n{indent})'
     
-    new_content = re.sub(pattern, replacement, content)
+    new_content = re.sub(pattern, replacement, content, flags=re.MULTILINE)
     
     if new_content == content:
         print("Warning: Pattern not found. The file may have a different structure.")
