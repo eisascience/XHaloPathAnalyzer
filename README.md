@@ -59,6 +59,7 @@ pip install uv
 
 ```bash
 # Create virtual environment with Python 3.11 using uv
+# Note: Requires Python 3.11 to be installed on your system
 uv venv -p 3.11 venv_xhpa_v1
 
 # Activate virtual environment
@@ -231,6 +232,7 @@ pip install uv
 
 **Using uv (faster, recommended):**
 ```bash
+# Requires Python 3.11 to be installed on your system
 uv venv -p 3.11 venv_xhpa_v1
 source venv_xhpa_v1/bin/activate  # On Windows: venv_xhpa_v1\Scripts\activate
 python -V  # should be 3.11.x
