@@ -21,6 +21,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def is_mps_available() -> bool:
+    """
+    Check if MPS (Metal Performance Shaders) is available.
+    
+    Returns:
+        bool: True if MPS is available, False otherwise
+    """
+    return hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()
+
+
 class Config:
     """
     Centralized configuration management for XHaloPathAnalyzer.
@@ -63,8 +73,14 @@ class Config:
         logger.error("JPEG_QUALITY must be a number, using default: 95")
         JPEG_QUALITY = 95
     
-    # Device Configuration (automatically detect CUDA)
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    # Device Configuration (automatically detect CUDA/MPS)
+    # Priority: CUDA > MPS > CPU
+    if torch.cuda.is_available():
+        DEVICE = "cuda"
+    elif is_mps_available():
+        DEVICE = "mps"
+    else:
+        DEVICE = "cpu"
     
     # GeoJSON Settings
     try:

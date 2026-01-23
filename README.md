@@ -13,7 +13,7 @@ A comprehensive, OS-agnostic application for custom image analysis on whole-slid
 - 📊 **Visualization**: Side-by-side comparison and overlay views
 - 📤 **GeoJSON Export**: Convert results to Halo-compatible annotations
 - 🖥️ **Cross-Platform**: Works on Windows, macOS, and Linux
-- 🚀 **GPU Accelerated**: Automatic CUDA detection and optimization
+- 🚀 **GPU Accelerated**: Automatic CUDA/MPS detection and optimization (NVIDIA GPUs, Apple Silicon)
 
 ## Usage Modes
 
@@ -119,7 +119,7 @@ curl -L -o models/medsam_vit_b.pth \
 
 ### 4. Patch Segment Anything (Optional but Recommended)
 
-To ensure SAM checkpoints saved from CUDA devices can load on CPU machines, run the patch script:
+To ensure SAM checkpoints saved from CUDA devices can load on CPU/MPS machines, run the patch script:
 
 ```bash
 python patch_segment_anything.py
@@ -230,7 +230,7 @@ Built for exploratory AI in digital pathology, this tool provides a flexible, in
 - Python 3.8 or higher (3.9+ recommended for Mac M2/ARM)
 - [uv](https://docs.astral.sh/uv/) (recommended) or pip package manager
 - [Homebrew](https://brew.sh/) (for Mac users, to install OpenSlide)
-- (Optional) CUDA-capable GPU for faster inference
+- (Optional) CUDA-capable GPU or Apple Silicon Mac for faster inference
 
 ### Quick Start
 
@@ -337,7 +337,7 @@ Then open your browser to `http://localhost:8501`
    - Or use the Mock API for testing without a real Halo instance
 
 2. **Initialize MedSAM**
-   - Select device (CPU/CUDA)
+   - Select device (CPU/CUDA/MPS - automatically detected)
    - Optionally provide path to MedSAM checkpoint
    - Click "Initialize MedSAM"
 
@@ -417,7 +417,7 @@ To use the full MedSAM model:
 
 1. Download the MedSAM checkpoint from the [official repository](https://github.com/bowang-lab/MedSAM)
 2. Provide the path to the checkpoint in the web UI
-3. Select appropriate device (CUDA for GPU acceleration)
+3. Select appropriate device (CUDA for NVIDIA GPUs, MPS for Apple Silicon, or CPU)
 
 Note: The application includes a mock segmentation mode for testing without the full model.
 
@@ -454,7 +454,7 @@ See **[GUIDE.md](GUIDE.md)** for comprehensive documentation including:
 
 - **Python**: 3.10 or higher
 - **RAM**: 16GB minimum (32GB recommended)
-- **GPU**: Optional (NVIDIA CUDA for acceleration)
+- **GPU**: Optional (NVIDIA CUDA or Apple Silicon MPS for acceleration)
 - **Storage**: 10GB for models and cache
 - **Halo**: API access with valid token
 

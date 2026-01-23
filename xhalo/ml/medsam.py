@@ -10,6 +10,14 @@ import logging
 from PIL import Image
 import cv2
 
+# Try importing from config, fallback to local implementation if import fails
+try:
+    from config import is_mps_available
+except ImportError:
+    def is_mps_available() -> bool:
+        """Fallback implementation of MPS availability check"""
+        return hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,9 +34,36 @@ class MedSAMPredictor:
         
         Args:
             model_path: Path to MedSAM model checkpoint
-            device: Device to run inference on (cuda/cpu)
+            device: Device to run inference on (cuda/mps/cpu)
         """
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        # Auto-detect best available device
+        if device is None:
+            if torch.cuda.is_available():
+                self.device = "cuda"
+            elif is_mps_available():
+                self.device = "mps"
+            else:
+                self.device = "cpu"
+        else:
+            # Validate device string
+            valid_devices = ["cuda", "mps", "cpu"]
+            if device not in valid_devices:
+                logger.warning(f"Invalid device '{device}' specified. Valid devices: {valid_devices}. Falling back to CPU")
+                self.device = "cpu"
+            # Validate and fallback if requested device is not available
+            elif device == "cuda" and not torch.cuda.is_available():
+                # Check for MPS as fallback
+                if is_mps_available():
+                    logger.warning("CUDA requested but not available, falling back to MPS")
+                    self.device = "mps"
+                else:
+                    logger.warning("CUDA requested but not available, falling back to CPU")
+                    self.device = "cpu"
+            elif device == "mps" and not is_mps_available():
+                logger.warning("MPS requested but not available, falling back to CPU")
+                self.device = "cpu"
+            else:
+                self.device = device
         self.model_path = model_path
         self.model = None
         

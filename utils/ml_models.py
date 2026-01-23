@@ -9,6 +9,7 @@ import numpy as np
 from segment_anything import sam_model_registry
 from typing import Tuple, Optional
 import logging
+from config import is_mps_available
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +28,23 @@ class MedSAMPredictor:
         Args:
             checkpoint_path: Path to model checkpoint file
             model_type: Model architecture (vit_b, vit_l, vit_h)
-            device: Device to run inference on (cuda or cpu)
+            device: Device to run inference on (cuda, mps, or cpu)
         """
-        # Respect user's device choice, only fall back to CPU if CUDA requested but unavailable
-        if device == "cuda" and not torch.cuda.is_available():
-            logger.warning("CUDA requested but not available, falling back to CPU")
+        # Respect user's device choice, only fall back if requested device unavailable
+        valid_devices = ["cuda", "mps", "cpu"]
+        if device not in valid_devices:
+            logger.warning(f"Invalid device '{device}' specified. Valid devices: {valid_devices}. Falling back to CPU")
+            self.device = "cpu"
+        elif device == "cuda" and not torch.cuda.is_available():
+            # Check for MPS as fallback
+            if is_mps_available():
+                logger.warning("CUDA requested but not available, falling back to MPS")
+                self.device = "mps"
+            else:
+                logger.warning("CUDA requested but not available, falling back to CPU")
+                self.device = "cpu"
+        elif device == "mps" and not is_mps_available():
+            logger.warning("MPS requested but not available, falling back to CPU")
             self.device = "cpu"
         else:
             self.device = device

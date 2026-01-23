@@ -7,7 +7,7 @@ Get up and running with XHalo Path Analyzer in 5 minutes!
 - Python 3.8 or higher (3.9+ recommended for Mac M2/ARM)
 - [uv](https://docs.astral.sh/uv/) (recommended) or pip package manager
 - [Homebrew](https://brew.sh/) (for Mac users, to install OpenSlide)
-- (Optional) CUDA-capable GPU for faster inference
+- (Optional) CUDA-capable GPU or Apple Silicon Mac for faster inference
 
 ## Installation
 
@@ -116,7 +116,7 @@ geojson = mask_to_geojson(mask)
    - Click "Connect to Halo"
 
 2. **Initialize MedSAM**
-   - Select device (CPU or CUDA)
+   - Select device (CPU, CUDA, or MPS - automatically detected)
    - Click "Initialize MedSAM"
 
 3. **Load an Image**
@@ -179,11 +179,11 @@ If you get import errors, make sure you installed the package:
 pip install -e .
 ```
 
-### CUDA Not Available
+### GPU Acceleration Not Available
 
-If you want GPU acceleration but CUDA is not available:
-1. Check GPU drivers: `nvidia-smi`
-2. Install PyTorch with CUDA support from [pytorch.org](https://pytorch.org)
+If you want GPU acceleration:
+- **For NVIDIA GPUs**: Check GPU drivers with `nvidia-smi` and install PyTorch with CUDA support from [pytorch.org](https://pytorch.org)
+- **For Apple Silicon Macs**: PyTorch 2.6.0+ automatically supports MPS (Metal Performance Shaders). No additional installation needed.
 
 ### Port Already in Use
 

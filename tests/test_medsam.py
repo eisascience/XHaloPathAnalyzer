@@ -19,11 +19,11 @@ class TestMedSAMPredictor:
         assert predictor.model is None  # No model loaded yet
     
     def test_predictor_init_cuda_available(self):
-        """Test predictor initialization with CUDA if available"""
+        """Test predictor initialization with CUDA/MPS if available"""
         predictor = MedSAMPredictor()
         
-        # Should default to cuda if available, else cpu
-        assert predictor.device in ["cpu", "cuda"]
+        # Should default to cuda/mps if available, else cpu
+        assert predictor.device in ["cpu", "cuda", "mps"]
     
     def test_predictor_with_model_path(self):
         """Test predictor initialization with model path"""
