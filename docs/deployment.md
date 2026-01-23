@@ -159,7 +159,7 @@ docker-compose up -d
 
 1. **Launch EC2 instance:**
    - Choose Ubuntu 22.04 LTS
-   - Instance type: t3.medium or larger (for GPU: p3.2xlarge)
+   - Instance type: t3.medium or larger (for GPU: p3.2xlarge, for Apple Silicon alternative: consider AWS Graviton instances)
    - Open port 8501 in security group
 
 2. **Setup:**
@@ -292,8 +292,8 @@ docker-compose up -d
    - Monitor resource usage
 
 3. **GPU Acceleration:**
-   - Use GPU instances for MedSAM inference
-   - Install CUDA and PyTorch with GPU support
+   - For NVIDIA GPUs: Use GPU instances (p3.2xlarge) for MedSAM inference and install CUDA and PyTorch with GPU support
+   - For Apple Silicon: PyTorch 2.6.0+ automatically supports MPS acceleration
 
 ### Monitoring
 
