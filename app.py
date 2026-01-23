@@ -29,7 +29,7 @@ from utils.image_proc import (
     overlay_mask_on_image,
     compute_mask_statistics
 )
-from utils.ml_models import MedSAMPredictor
+from utils.ml_models import MedSAMPredictor as UtilsMedSAMPredictor
 from utils.geojson_utils import (
     mask_to_polygons,
     polygons_to_geojson
@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 # Import local modules
 from xhalo.api import HaloAPIClient, MockHaloAPIClient
-from xhalo.ml import MedSAMPredictor, segment_tissue
+from xhalo.ml import MedSAMPredictor as XHaloMedSAMPredictor, segment_tissue
 from xhalo.utils import (
     load_image,
     resize_image,
@@ -516,7 +516,7 @@ def analysis_page():
                     # Initialize predictor if needed
                     if st.session_state.predictor is None:
                         st.info("⏳ Loading MedSAM model...")
-                        st.session_state.predictor = MedSAMPredictor(
+                        st.session_state.predictor = UtilsMedSAMPredictor(
                             Config.MEDSAM_CHECKPOINT,
                             model_type=Config.MODEL_TYPE,
                             device=Config.DEVICE
