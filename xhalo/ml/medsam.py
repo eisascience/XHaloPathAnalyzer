@@ -9,12 +9,14 @@ from typing import Optional, Tuple, List
 import logging
 from PIL import Image
 import cv2
-import sys
-import os
 
-# Add parent directory to path to import config
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from config import is_mps_available
+# Try importing from config, fallback to local implementation if import fails
+try:
+    from config import is_mps_available
+except ImportError:
+    def is_mps_available() -> bool:
+        """Fallback implementation of MPS availability check"""
+        return hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +52,13 @@ class MedSAMPredictor:
                 self.device = "cpu"
             # Validate and fallback if requested device is not available
             elif device == "cuda" and not torch.cuda.is_available():
-                logger.warning("CUDA requested but not available, falling back to CPU")
-                self.device = "cpu"
+                # Check for MPS as fallback
+                if is_mps_available():
+                    logger.warning("CUDA requested but not available, falling back to MPS")
+                    self.device = "mps"
+                else:
+                    logger.warning("CUDA requested but not available, falling back to CPU")
+                    self.device = "cpu"
             elif device == "mps" and not is_mps_available():
                 logger.warning("MPS requested but not available, falling back to CPU")
                 self.device = "cpu"
