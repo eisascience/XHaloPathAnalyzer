@@ -46,10 +46,14 @@ def patch_build_sam(segment_anything_path):
     
     # Pattern to match torch.load with weights_only parameter
     # Looking for: state_dict = torch.load(f, weights_only=False)
-    pattern = r'(state_dict\s*=\s*torch\.load\s*\(\s*f\s*,\s*)weights_only\s*=\s*False\s*\)'
+    # This pattern is flexible with whitespace but captures indentation
+    pattern = r'(\s*)(state_dict\s*=\s*torch\.load\s*\(\s*f\s*,\s*)(weights_only\s*=\s*False\s*)\)'
     
-    # Replacement with map_location added
-    replacement = r'\1map_location="cpu",\n        weights_only=False\n    )'
+    # Replacement with map_location added, preserving indentation
+    def replacement(match):
+        indent = match.group(1)
+        prefix = match.group(2)
+        return f'{indent}state_dict = torch.load(\n{indent}    f,\n{indent}    map_location="cpu",\n{indent}    weights_only=False\n{indent})'
     
     new_content = re.sub(pattern, replacement, content)
     
