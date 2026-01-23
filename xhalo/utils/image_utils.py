@@ -13,22 +13,24 @@ logger = logging.getLogger(__name__)
 
 def load_image(image_path: str, max_size: Optional[int] = None) -> np.ndarray:
     """
-    Load image from file
+    Load image from file in RGB format
     
     Args:
         image_path: Path to image file
         max_size: Optional maximum dimension size
         
     Returns:
-        Image as numpy array (H, W, C)
+        RGB image as numpy array (H, W, C) in [0, 255] range
     """
     try:
         image = Image.open(image_path)
+        # Convert to RGB - PIL returns RGB, not BGR like cv2.imread
         image = np.array(image.convert('RGB'))
         
         if max_size and max(image.shape[:2]) > max_size:
             image = resize_image(image, max_size)
         
+        logger.info(f"Loaded image from {image_path}: shape={image.shape}, dtype={image.dtype}")
         return image
     except Exception as e:
         logger.error(f"Error loading image {image_path}: {e}")

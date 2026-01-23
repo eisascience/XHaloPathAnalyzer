@@ -27,10 +27,15 @@ def load_image_from_bytes(image_data: bytes) -> np.ndarray:
     """
     try:
         img = Image.open(io.BytesIO(image_data))
-        # Convert to RGB if necessary
+        # Convert to RGB if necessary (handles BGR, grayscale, etc.)
+        # PIL.Image.open always returns RGB, not BGR like cv2.imread
         if img.mode != 'RGB':
             img = img.convert('RGB')
-        return np.array(img)
+        img_array = np.array(img)
+        
+        logger.info(f"Loaded image: shape={img_array.shape}, dtype={img_array.dtype}, "
+                   f"range=[{img_array.min()}, {img_array.max()}]")
+        return img_array
     except Exception as e:
         logger.error(f"Failed to load image: {str(e)}")
         raise
