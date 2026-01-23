@@ -154,10 +154,12 @@ class MedSAMPredictor:
         """
         # Ensure proper image normalization for SAM
         # SAM expects images in [0, 255] range as uint8
+        # Use threshold of 1.5 as heuristic: if max <= 1.5, assume normalized [0, 1]
+        # This handles both float [0, 1] and integer [0, 255] inputs robustly
         img = image.astype(np.float32)
-        if img.max() <= 1.5:  # looks like 0..1
+        if img.max() <= 1.5:  # looks like 0..1 normalized
             img = (img * 255.0).clip(0, 255).astype(np.uint8)
-        else:
+        else:  # looks like 0..255 unnormalized
             img = img.clip(0, 255).astype(np.uint8)
         
         # Prepare image - convert to tensor

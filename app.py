@@ -594,8 +594,18 @@ def analysis_page():
         st.write(f"Mask dtype: {mask.dtype}, shape: {mask.shape}")
         st.write(f"Mask min/max: {float(np.min(mask))}, {float(np.max(mask))}")
         
-        # Create binary mask if needed
-        mask_bin = (mask > 0.5) if mask.dtype != np.bool_ else mask
+        # Create binary mask - handle both boolean and numeric masks
+        # For boolean masks, use directly; for numeric, threshold at 0.5
+        if mask.dtype == np.bool_:
+            mask_bin = mask
+        else:
+            # Check if already binary (0/1) or needs thresholding
+            unique_vals = np.unique(mask)
+            if len(unique_vals) <= 2 and set(unique_vals).issubset({0, 1, True, False}):
+                mask_bin = mask.astype(bool)  # Already binary
+            else:
+                mask_bin = mask > 0.5  # Threshold probabilistic output
+        
         st.write(f"Binary mask unique values: {np.unique(mask_bin)}")
         st.write(f"Binary mask sum (positive pixels): {int(mask_bin.sum())}")
         
@@ -606,7 +616,8 @@ def analysis_page():
         
         with col2:
             # Display binary mask properly - convert to uint8 for visualization
-            mask_vis = (mask_bin.astype(np.uint8) * 255)
+            # Use explicit parentheses for clarity
+            mask_vis = (mask_bin.astype(np.uint8)) * 255
             st.image(mask_vis, caption="Segmentation Mask (binary)", clamp=True, use_container_width=True)
         
         with col3:
