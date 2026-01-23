@@ -9,6 +9,7 @@ import numpy as np
 from segment_anything import sam_model_registry
 from typing import Tuple, Optional
 import logging
+from config import is_mps_available
 
 logger = logging.getLogger(__name__)
 
@@ -36,13 +37,13 @@ class MedSAMPredictor:
             self.device = "cpu"
         elif device == "cuda" and not torch.cuda.is_available():
             # Check for MPS as fallback
-            if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            if is_mps_available():
                 logger.warning("CUDA requested but not available, falling back to MPS")
                 self.device = "mps"
             else:
                 logger.warning("CUDA requested but not available, falling back to CPU")
                 self.device = "cpu"
-        elif device == "mps" and not (hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()):
+        elif device == "mps" and not is_mps_available():
             logger.warning("MPS requested but not available, falling back to CPU")
             self.device = "cpu"
         else:

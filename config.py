@@ -21,6 +21,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def is_mps_available() -> bool:
+    """
+    Check if MPS (Metal Performance Shaders) is available.
+    
+    Returns:
+        bool: True if MPS is available, False otherwise
+    """
+    return hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()
+
+
 class Config:
     """
     Centralized configuration management for XHaloPathAnalyzer.
@@ -67,7 +77,7 @@ class Config:
     # Priority: CUDA > MPS > CPU
     if torch.cuda.is_available():
         DEVICE = "cuda"
-    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+    elif is_mps_available():
         DEVICE = "mps"
     else:
         DEVICE = "cpu"

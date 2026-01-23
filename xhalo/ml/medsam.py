@@ -9,6 +9,12 @@ from typing import Optional, Tuple, List
 import logging
 from PIL import Image
 import cv2
+import sys
+import os
+
+# Add parent directory to path to import config
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+from config import is_mps_available
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +38,7 @@ class MedSAMPredictor:
         if device is None:
             if torch.cuda.is_available():
                 self.device = "cuda"
-            elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            elif is_mps_available():
                 self.device = "mps"
             else:
                 self.device = "cpu"
@@ -46,7 +52,7 @@ class MedSAMPredictor:
             elif device == "cuda" and not torch.cuda.is_available():
                 logger.warning("CUDA requested but not available, falling back to CPU")
                 self.device = "cpu"
-            elif device == "mps" and not (hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()):
+            elif device == "mps" and not is_mps_available():
                 logger.warning("MPS requested but not available, falling back to CPU")
                 self.device = "cpu"
             else:
