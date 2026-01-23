@@ -125,6 +125,10 @@ class MedSAMPredictor:
 
             model.to(device)
             model.eval()
+            
+            # Update self.device to match the actual device used
+            self.device = str(device)
+            
             return model
 
         except Exception as e:
