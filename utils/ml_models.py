@@ -152,8 +152,16 @@ class MedSAMPredictor:
         Returns:
             Binary mask as numpy array
         """
+        # Ensure proper image normalization for SAM
+        # SAM expects images in [0, 255] range as uint8
+        img = image.astype(np.float32)
+        if img.max() <= 1.5:  # looks like 0..1
+            img = (img * 255.0).clip(0, 255).astype(np.uint8)
+        else:
+            img = img.clip(0, 255).astype(np.uint8)
+        
         # Prepare image - convert to tensor
-        image_tensor = torch.from_numpy(image).permute(2, 0, 1).float()
+        image_tensor = torch.from_numpy(img).permute(2, 0, 1).float()
         image_tensor = image_tensor.unsqueeze(0).to(self.device)
         
         # Encode image

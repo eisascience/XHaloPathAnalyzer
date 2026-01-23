@@ -588,13 +588,26 @@ def analysis_page():
         # Visualizations
         st.markdown("### 🖼️ Visualization")
         
+        # Debug information for mask
+        mask = results['mask']
+        st.write("**Debug Info:**")
+        st.write(f"Mask dtype: {mask.dtype}, shape: {mask.shape}")
+        st.write(f"Mask min/max: {float(np.min(mask))}, {float(np.max(mask))}")
+        
+        # Create binary mask if needed
+        mask_bin = (mask > 0.5) if mask.dtype != np.bool_ else mask
+        st.write(f"Binary mask unique values: {np.unique(mask_bin)}")
+        st.write(f"Binary mask sum (positive pixels): {int(mask_bin.sum())}")
+        
         col1, col2, col3 = st.columns(3)
         
         with col1:
             st.image(results['image'], caption="Original Image", use_container_width=True)
         
         with col2:
-            st.image(results['mask'], caption="Segmentation Mask", use_container_width=True)
+            # Display binary mask properly - convert to uint8 for visualization
+            mask_vis = (mask_bin.astype(np.uint8) * 255)
+            st.image(mask_vis, caption="Segmentation Mask (binary)", clamp=True, use_container_width=True)
         
         with col3:
             overlay = overlay_mask_on_image(
