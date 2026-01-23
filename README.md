@@ -110,14 +110,38 @@ mkdir -p models
 
 # Option A: Using wget (if available)
 wget -O models/medsam_vit_b.pth \
-  https://zenodo.org/record/8408663/files/medsam_vit_b.pth
+  https://zenodo.org/records/10689643/files/medsam_vit_b.pth?download=1
 
 # Option B: Using curl (default on macOS)
 curl -L -o models/medsam_vit_b.pth \
-  https://zenodo.org/record/8408663/files/medsam_vit_b.pth
+  https://zenodo.org/records/10689643/files/medsam_vit_b.pth?download=1
 ```
 
-### 4. Configure Environment
+### 4. Patch Segment Anything (Optional but Recommended)
+
+To ensure SAM checkpoints saved from CUDA devices can load on CPU machines, run the patch script:
+
+```bash
+python patch_segment_anything.py
+```
+
+This script modifies the `segment_anything` package to add `map_location="cpu"` to model loading, ensuring cross-platform compatibility.
+
+**Alternative Manual Patch:**
+If you prefer to patch manually, edit your installed `segment_anything/build_sam.py` file and change:
+```python
+state_dict = torch.load(f, weights_only=False)
+```
+to:
+```python
+state_dict = torch.load(
+    f,
+    map_location="cpu",
+    weights_only=False,
+)
+```
+
+### 5. Configure Environment
 ```bash
 # Copy example environment file
 cp .env.example .env
@@ -126,7 +150,7 @@ cp .env.example .env
 nano .env
 ```
 
-### 5. Run Application
+### 6. Run Application
 ```bash
 # Start Streamlit app
 streamlit run app.py
