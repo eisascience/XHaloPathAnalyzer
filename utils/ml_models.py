@@ -37,11 +37,15 @@ def _safe_load_state_dict(path: str):
     try:
         sd = torch.load(path, **load_kwargs, weights_only=True)
     except TypeError:
-        # Older torch doesn't have weights_only
+        # Older torch doesn't have weights_only parameter
         sd = torch.load(path, **load_kwargs)
     except Exception:
-        # If weights_only=True fails for some reason, fall back
-        sd = torch.load(path, **load_kwargs, weights_only=False)
+        # If weights_only=True fails for some other reason (e.g., pickle error), fall back
+        try:
+            sd = torch.load(path, **load_kwargs, weights_only=False)
+        except TypeError:
+            # Very old PyTorch without weights_only parameter at all
+            sd = torch.load(path, **load_kwargs)
 
     # Handle common checkpoint wrappers
     if isinstance(sd, dict):
@@ -119,7 +123,6 @@ class MedSAMPredictor:
             model.load_state_dict(state_dict)
 
             model.to(device)
-            model.eval()
             
             return model
 
