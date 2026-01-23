@@ -59,10 +59,10 @@ pip install uv
 
 ```bash
 # Create virtual environment with uv
-uv venv_xhpa_v1
+uv venv venv_xhpa_v1
 
 # Activate virtual environment
-source .venv_xhpa_v1/bin/activate  # On Windows: .venv_xhpa_v1\Scripts\activate
+source venv_xhpa_v1/bin/activate  # On Windows: venv_xhpa_v1\Scripts\activate
 
 # Install packages with uv (much faster than pip!)
 uv pip install -r requirements.txt
@@ -228,14 +228,14 @@ pip install uv
 
 **Using uv (faster, recommended):**
 ```bash
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+uv venv venv_xhpa_v1
+source venv_xhpa_v1/bin/activate  # On Windows: venv_xhpa_v1\Scripts\activate
 ```
 
 **Using traditional venv:**
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python -m venv venv_xhpa_v1
+source venv_xhpa_v1/bin/activate  # On Windows: venv_xhpa_v1\Scripts\activate
 ```
 
 4. **Install dependencies**
