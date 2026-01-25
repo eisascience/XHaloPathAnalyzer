@@ -511,7 +511,7 @@ For questions, issues, or contributions, please open an issue on GitHub.
 
 ---
 
-**Built with  for the digital pathology community**
+**Built with care for the digital pathology community**
 X-Halo-Patho-Analyzer
 ├── app.py                          # Main Streamlit application
 ├── setup.py                        # Package configuration
