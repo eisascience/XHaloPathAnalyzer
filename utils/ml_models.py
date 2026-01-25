@@ -6,7 +6,8 @@ Wrapper for MedSAM and other segmentation models.
 
 import torch
 import numpy as np
-from segment_anything import sam_model_registry
+import cv2
+from segment_anything import sam_model_registry, SamPredictor
 from typing import Tuple, Optional
 import logging
 from config import is_mps_available
@@ -59,6 +60,116 @@ def _safe_load_state_dict(path: str):
     return sd
 
 
+def _ensure_rgb_uint8(image: np.ndarray) -> np.ndarray:
+    """
+    Ensure image is in HWC RGB uint8 format for SAM.
+    
+    Handles:
+    - Float [0,1] to uint8 [0,255] conversion
+    - Grayscale to 3-channel RGB
+    - BGR to RGB conversion (if needed)
+    
+    Args:
+        image: Input image in various formats
+        
+    Returns:
+        Image in HWC RGB uint8 format
+    """
+    # Convert to numpy if needed
+    if not isinstance(image, np.ndarray):
+        image = np.array(image)
+    
+    # Handle float [0,1] to uint8 [0,255]
+    if image.dtype in [np.float32, np.float64]:
+        if image.max() <= 1.5:  # Normalized [0,1]
+            image = (image * 255.0).clip(0, 255).astype(np.uint8)
+        else:
+            image = image.clip(0, 255).astype(np.uint8)
+    else:
+        # Already integer type, just ensure uint8
+        image = image.astype(np.uint8)
+    
+    # Handle grayscale (HW) or (HW1) to RGB (HW3)
+    if image.ndim == 2:
+        image = np.stack([image, image, image], axis=-1)
+    elif image.ndim == 3 and image.shape[2] == 1:
+        image = np.concatenate([image, image, image], axis=-1)
+    
+    # Ensure we have 3 channels
+    if image.ndim != 3 or image.shape[2] != 3:
+        raise ValueError(f"Image must have 3 channels, got shape {image.shape}")
+    
+    # Note: We assume images are already RGB. If BGR conversion is needed,
+    # it should be done before calling this function.
+    
+    return image
+
+
+def _compute_tissue_bbox(image: np.ndarray, 
+                         min_area_ratio: float = 0.01,
+                         morph_kernel_size: int = 5) -> np.ndarray:
+    """
+    Compute bounding box around tissue region using simple thresholding.
+    
+    Args:
+        image: RGB uint8 image (HWC)
+        min_area_ratio: Minimum area ratio to consider valid tissue
+        morph_kernel_size: Kernel size for morphological operations
+        
+    Returns:
+        Bounding box as [x1, y1, x2, y2] or full image box if detection fails
+    """
+    h, w = image.shape[:2]
+    
+    try:
+        # Convert to grayscale
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        
+        # Otsu threshold to separate tissue from background
+        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
+        # Morphological operations to clean up
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, 
+                                          (morph_kernel_size, morph_kernel_size))
+        binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+        binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
+        
+        # Find connected components
+        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(binary, connectivity=8)
+        
+        if num_labels <= 1:
+            # No components found, return full image
+            logger.warning("No tissue components found, using full image box")
+            return np.array([0, 0, w - 1, h - 1])
+        
+        # Find largest component (excluding background which is label 0)
+        areas = stats[1:, cv2.CC_STAT_AREA]
+        largest_idx = np.argmax(areas) + 1
+        
+        # Check if area is significant
+        largest_area = stats[largest_idx, cv2.CC_STAT_AREA]
+        if largest_area < (w * h * min_area_ratio):
+            logger.warning(f"Largest component too small ({largest_area} pixels), using full image box")
+            return np.array([0, 0, w - 1, h - 1])
+        
+        # Get bounding box
+        x = stats[largest_idx, cv2.CC_STAT_LEFT]
+        y = stats[largest_idx, cv2.CC_STAT_TOP]
+        bbox_w = stats[largest_idx, cv2.CC_STAT_WIDTH]
+        bbox_h = stats[largest_idx, cv2.CC_STAT_HEIGHT]
+        
+        # Return as [x1, y1, x2, y2]
+        bbox = np.array([x, y, x + bbox_w - 1, y + bbox_h - 1])
+        
+        logger.info(f"Detected tissue bbox: {bbox}, area: {largest_area} pixels ({100*largest_area/(w*h):.1f}%)")
+        
+        return bbox
+        
+    except Exception as e:
+        logger.error(f"Error computing tissue bbox: {e}, using full image box")
+        return np.array([0, 0, w - 1, h - 1])
+
+
 class MedSAMPredictor:
     """
     Wrapper for MedSAM model inference.
@@ -98,6 +209,10 @@ class MedSAMPredictor:
         try:
             self.model = self._load_model(checkpoint_path, model_type)
             self.model.eval()
+            
+            # Create SamPredictor for proper inference
+            self.sam_predictor = SamPredictor(self.model)
+            
             logger.info(f"Loaded MedSAM model ({model_type}) on {self.device}")
         except Exception as e:
             logger.error(f"Failed to load model: {str(e)}")
@@ -135,146 +250,156 @@ class MedSAMPredictor:
     @torch.no_grad()
     def predict(self, 
                 image: np.ndarray, 
+                prompt_mode: str = "auto_box",
                 point_coords: Optional[np.ndarray] = None,
                 point_labels: Optional[np.ndarray] = None,
                 box: Optional[np.ndarray] = None,
-                multimask_output: bool = False) -> np.ndarray:
+                multimask_output: bool = False,
+                min_area_ratio: float = 0.01,
+                morph_kernel_size: int = 5) -> np.ndarray:
         """
-        Run inference on image.
+        Run inference on image using SAM with proper prompts.
         
         Args:
-            image: RGB image as numpy array (H, W, 3)
-            point_coords: Point prompts (N, 2) in (x, y) format
+            image: Input image (will be converted to HWC RGB uint8)
+            prompt_mode: Prompt mode - "auto_box" (detect tissue), "full_box", or "point"
+            point_coords: Point prompts (N, 2) in (x, y) format (for "point" mode)
             point_labels: Labels for points (1 = foreground, 0 = background)
-            box: Bounding box prompt (x1, y1, x2, y2)
+            box: Bounding box prompt [x1, y1, x2, y2] (overrides prompt_mode if provided)
             multimask_output: Whether to return multiple mask predictions
+            min_area_ratio: Minimum area ratio for auto tissue detection
+            morph_kernel_size: Kernel size for morphological operations in auto detection
             
         Returns:
-            Binary mask as numpy array
+            Binary mask as uint8 numpy array (0 or 255)
         """
-        # Ensure proper image normalization for SAM
-        # SAM expects images in [0, 255] range as uint8
-        # Use threshold of 1.5 as heuristic: if max <= 1.5, assume normalized [0, 1]
-        # This handles both float [0, 1] and integer [0, 255] inputs robustly
-        img = image.astype(np.float32)
-        if img.max() <= 1.5:  # looks like 0..1 normalized
-            img = (img * 255.0).clip(0, 255).astype(np.uint8)
-        else:  # looks like 0..255 unnormalized
-            img = img.clip(0, 255).astype(np.uint8)
+        # Ensure proper image format
+        image_rgb_uint8 = _ensure_rgb_uint8(image)
+        h, w = image_rgb_uint8.shape[:2]
         
-        # Prepare image - convert to tensor
-        image_tensor = torch.from_numpy(img).permute(2, 0, 1).float()
-        image_tensor = image_tensor.unsqueeze(0).to(self.device)
+        logger.info(f"Processing image: shape={image_rgb_uint8.shape}, dtype={image_rgb_uint8.dtype}")
         
-        # Encode image
-        with torch.no_grad():
-            # Get image embedding
-            image_embedding = self.model.image_encoder(image_tensor)
+        # Set image for SAM predictor
+        self.sam_predictor.set_image(image_rgb_uint8)
         
-        # Prepare prompts
-        prompt_points = None
-        prompt_labels = None
-        prompt_box = None
-        
-        if point_coords is not None and point_labels is not None:
-            prompt_points = torch.from_numpy(point_coords).float().unsqueeze(0).to(self.device)
-            prompt_labels = torch.from_numpy(point_labels).float().unsqueeze(0).to(self.device)
-        
+        # Determine prompt based on mode
         if box is not None:
-            prompt_box = torch.from_numpy(box).float().unsqueeze(0).to(self.device)
+            # Use provided box
+            prompt_box = box
+            logger.info(f"Using provided box: {prompt_box}")
+        elif prompt_mode == "auto_box":
+            # Auto-detect tissue region
+            prompt_box = _compute_tissue_bbox(image_rgb_uint8, min_area_ratio, morph_kernel_size)
+            logger.info(f"Auto-detected tissue box: {prompt_box}")
+        elif prompt_mode == "full_box":
+            # Use full image as box
+            prompt_box = np.array([0, 0, w - 1, h - 1])
+            logger.info(f"Using full image box: {prompt_box}")
+        elif prompt_mode == "point":
+            # Use point prompts
+            if point_coords is None or point_labels is None:
+                # Default to center point if not provided
+                center_point = np.array([[w // 2, h // 2]])
+                point_coords = center_point
+                point_labels = np.array([1])
+                logger.info(f"Using default center point: {center_point}")
+            prompt_box = None
+        else:
+            raise ValueError(f"Invalid prompt_mode: {prompt_mode}. Must be 'auto_box', 'full_box', or 'point'")
         
-        # If no prompts provided, use automatic mode (center point)
-        if prompt_points is None and prompt_box is None:
-            h, w = image.shape[:2]
-            # Use center point as default prompt
-            center_point = np.array([[w // 2, h // 2]])
-            prompt_points = torch.from_numpy(center_point).float().unsqueeze(0).to(self.device)
-            prompt_labels = torch.ones((1, 1)).float().to(self.device)
-        
-        # Decode mask
-        with torch.no_grad():
-            sparse_embeddings, dense_embeddings = self.model.prompt_encoder(
-                points=(prompt_points, prompt_labels) if prompt_points is not None else None,
-                boxes=prompt_box,
-                masks=None,
+        # Run prediction using SamPredictor
+        if prompt_box is not None:
+            # Box-based prediction
+            masks, scores, logits = self.sam_predictor.predict(
+                point_coords=None,
+                point_labels=None,
+                box=prompt_box,
+                multimask_output=multimask_output,
             )
-            
-            low_res_masks, iou_predictions = self.model.mask_decoder(
-                image_embeddings=image_embedding,
-                image_pe=self.model.prompt_encoder.get_dense_pe(),
-                sparse_prompt_embeddings=sparse_embeddings,
-                dense_prompt_embeddings=dense_embeddings,
+        else:
+            # Point-based prediction
+            masks, scores, logits = self.sam_predictor.predict(
+                point_coords=point_coords,
+                point_labels=point_labels,
+                box=None,
                 multimask_output=multimask_output,
             )
         
-        # Upscale masks to original image size
-        masks = torch.nn.functional.interpolate(
-            low_res_masks,
-            size=(image.shape[0], image.shape[1]),
-            mode="bilinear",
-            align_corners=False,
-        )
-        
-        # Get best mask based on IOU score
+        # Get best mask (highest score)
         if multimask_output:
-            best_mask_idx = iou_predictions.argmax()
-            mask = masks[0, best_mask_idx].cpu().numpy()
+            best_idx = np.argmax(scores)
+            mask = masks[best_idx]
+            best_score = scores[best_idx]
         else:
-            mask = masks[0, 0].cpu().numpy()
+            mask = masks[0]
+            best_score = scores[0]
         
-        # Convert to binary mask
-        binary_mask = mask > 0.0
+        # Convert to uint8 binary mask (0 or 255)
+        binary_mask = (mask > 0).astype(np.uint8) * 255
         
-        logger.info(f"Generated mask with {np.sum(binary_mask)} positive pixels")
+        # Log statistics
+        mask_area = np.sum(mask > 0)
+        mask_ratio = mask_area / (h * w)
+        logger.info(f"Generated mask: area={mask_area} pixels ({100*mask_ratio:.1f}% of image), score={best_score:.3f}")
         
         return binary_mask
     
-    def predict_with_box(self, image: np.ndarray, box: np.ndarray) -> np.ndarray:
+    def predict_with_box(self, image: np.ndarray, box: np.ndarray, multimask_output: bool = False) -> np.ndarray:
         """
         Convenience method for box-based segmentation.
         
         Args:
-            image: RGB image (H, W, 3)
-            box: Bounding box (x1, y1, x2, y2)
+            image: Input image (will be converted to HWC RGB uint8)
+            box: Bounding box [x1, y1, x2, y2]
+            multimask_output: Whether to return multiple mask predictions
             
         Returns:
-            Binary mask
+            Binary mask as uint8 (0 or 255)
         """
-        return self.predict(image, box=box)
+        return self.predict(image, box=box, multimask_output=multimask_output)
     
     def predict_with_points(self, image: np.ndarray, 
-                          points: np.ndarray, labels: np.ndarray) -> np.ndarray:
+                          points: np.ndarray, labels: np.ndarray,
+                          multimask_output: bool = False) -> np.ndarray:
         """
         Convenience method for point-based segmentation.
         
         Args:
-            image: RGB image (H, W, 3)
-            points: Point coordinates (N, 2)
+            image: Input image (will be converted to HWC RGB uint8)
+            points: Point coordinates (N, 2) in (x, y) format
             labels: Point labels (N,) - 1 for foreground, 0 for background
+            multimask_output: Whether to return multiple mask predictions
             
         Returns:
-            Binary mask
+            Binary mask as uint8 (0 or 255)
         """
-        return self.predict(image, point_coords=points, point_labels=labels)
+        return self.predict(image, prompt_mode="point", point_coords=points, 
+                          point_labels=labels, multimask_output=multimask_output)
     
     def batch_predict(self, images: list, prompts: list) -> list:
         """
         Run batch inference on multiple images.
         
         Args:
-            images: List of RGB images
-            prompts: List of prompt dictionaries
+            images: List of images (will be converted to HWC RGB uint8)
+            prompts: List of prompt dictionaries with keys:
+                     - 'mode': 'auto_box', 'full_box', or 'point'
+                     - 'points': point coordinates (optional)
+                     - 'labels': point labels (optional)
+                     - 'box': bounding box (optional)
             
         Returns:
-            List of binary masks
+            List of binary masks as uint8 (0 or 255)
         """
         masks = []
         for image, prompt in zip(images, prompts):
             mask = self.predict(
                 image,
+                prompt_mode=prompt.get('mode', 'auto_box'),
                 point_coords=prompt.get('points'),
                 point_labels=prompt.get('labels'),
-                box=prompt.get('box')
+                box=prompt.get('box'),
+                multimask_output=prompt.get('multimask_output', False)
             )
             masks.append(mask)
         return masks
