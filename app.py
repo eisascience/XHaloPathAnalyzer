@@ -43,6 +43,15 @@ from typing import Optional, List, Dict, Any
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Constants for visualization
+PROMPT_BOX_COLOR = (0, 255, 0)  # Green in RGB
+PROMPT_BOX_THICKNESS = 3
+PROMPT_BOX_LABEL_FONT = cv2.FONT_HERSHEY_SIMPLEX
+PROMPT_BOX_LABEL_SCALE = 1.0
+PROMPT_BOX_LABEL_THICKNESS = 2
+PROMPT_BOX_LABEL_Y_OFFSET = 10
+PROMPT_BOX_LABEL_MIN_Y = 20
+
 # Import local modules
 from xhalo.api import HaloAPIClient, MockHaloAPIClient
 from xhalo.ml import MedSAMPredictor as XHaloMedSAMPredictor, segment_tissue
@@ -672,10 +681,13 @@ def analysis_page():
             img_with_box = results['image'].copy()
             # Draw rectangle on image
             x1, y1, x2, y2 = prompt_box.astype(int)
-            img_with_box = cv2.rectangle(img_with_box, (x1, y1), (x2, y2), (0, 255, 0), 3)
+            img_with_box = cv2.rectangle(img_with_box, (x1, y1), (x2, y2), 
+                                        PROMPT_BOX_COLOR, PROMPT_BOX_THICKNESS)
             # Add text label
+            label_y = max(y1 - PROMPT_BOX_LABEL_Y_OFFSET, PROMPT_BOX_LABEL_MIN_Y)
             cv2.putText(img_with_box, f"Prompt: {results.get('prompt_mode', 'box')}", 
-                       (x1, max(y1-10, 20)), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                       (x1, label_y), PROMPT_BOX_LABEL_FONT, PROMPT_BOX_LABEL_SCALE,
+                       PROMPT_BOX_COLOR, PROMPT_BOX_LABEL_THICKNESS)
         
         # Display images in columns
         if results.get('prompt_box') is not None:

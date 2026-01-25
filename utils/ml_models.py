@@ -15,6 +15,13 @@ from config import is_mps_available
 logger = logging.getLogger(__name__)
 
 
+# Constants for image processing
+NORMALIZED_IMAGE_THRESHOLD = 1.5  # Threshold to detect [0,1] vs [0,255] images
+TISSUE_BACKGROUND_RATIO_THRESHOLD = 0.5  # Threshold for tissue vs background detection
+MASK_FOREGROUND_VALUE = 255  # Value for foreground pixels in binary masks
+MASK_BACKGROUND_VALUE = 0  # Value for background pixels in binary masks
+
+
 def _safe_load_state_dict(path: str):
     """
     Safely load model state dict from checkpoint file.
@@ -67,13 +74,28 @@ def _ensure_rgb_uint8(image: np.ndarray) -> np.ndarray:
     Handles:
     - Float [0,1] to uint8 [0,255] conversion
     - Grayscale to 3-channel RGB
-    - BGR to RGB conversion (if needed)
+    - Various input array shapes
     
     Args:
-        image: Input image in various formats
+        image: Input image in various formats:
+               - (H, W) - grayscale
+               - (H, W, 1) - grayscale with channel dimension
+               - (H, W, 3) - RGB
+               - dtype can be uint8, float32, or float64
         
     Returns:
-        Image in HWC RGB uint8 format
+        Image in HWC RGB uint8 format with shape (H, W, 3)
+        
+    Examples:
+        >>> gray = np.random.rand(100, 100)  # Float grayscale
+        >>> rgb = _ensure_rgb_uint8(gray)
+        >>> rgb.shape, rgb.dtype
+        ((100, 100, 3), dtype('uint8'))
+        
+        >>> color = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> result = _ensure_rgb_uint8(color)
+        >>> np.array_equal(result, color)
+        True
     """
     # Convert to numpy if needed
     if not isinstance(image, np.ndarray):
@@ -81,7 +103,7 @@ def _ensure_rgb_uint8(image: np.ndarray) -> np.ndarray:
     
     # Handle float [0,1] to uint8 [0,255]
     if image.dtype in [np.float32, np.float64]:
-        if image.max() <= 1.5:  # Normalized [0,1]
+        if image.max() <= NORMALIZED_IMAGE_THRESHOLD:  # Normalized [0,1]
             image = (image * 255.0).clip(0, 255).astype(np.uint8)
         else:
             image = image.clip(0, 255).astype(np.uint8)
@@ -111,13 +133,29 @@ def _compute_tissue_bbox(image: np.ndarray,
     """
     Compute bounding box around tissue region using simple thresholding.
     
+    Algorithm:
+    1. Convert RGB image to grayscale
+    2. Apply Otsu's thresholding to separate foreground from background
+    3. Invert binary image if tissue was marked as background (darker regions)
+    4. Apply morphological closing to fill holes
+    5. Apply morphological opening to remove noise
+    6. Find connected components
+    7. Select largest component as tissue region
+    8. Return bounding box of largest component
+    
     Args:
-        image: RGB uint8 image (HWC)
+        image: RGB uint8 image (HWC format)
         min_area_ratio: Minimum area ratio to consider valid tissue
-        morph_kernel_size: Kernel size for morphological operations
+                       (e.g., 0.01 means tissue must cover at least 1% of image)
+        morph_kernel_size: Kernel size for morphological operations (should be odd)
         
     Returns:
         Bounding box as [x1, y1, x2, y2] or full image box if detection fails
+        
+    Edge Cases:
+        - If no tissue detected: returns full image bounding box
+        - If detected tissue too small: returns full image bounding box
+        - If error occurs: returns full image bounding box (logged as error)
     """
     h, w = image.shape[:2]
     
@@ -133,7 +171,7 @@ def _compute_tissue_bbox(image: np.ndarray,
         # For tissue detection, we want tissue to be white (foreground)
         # If less than 50% is white after Otsu, tissue was likely marked as black
         white_ratio = np.sum(binary == 255) / (h * w)
-        if white_ratio < 0.5:
+        if white_ratio < TISSUE_BACKGROUND_RATIO_THRESHOLD:
             # Invert: tissue (currently black) becomes white
             binary = 255 - binary
         
@@ -344,7 +382,7 @@ class MedSAMPredictor:
             best_score = scores[0]
         
         # Convert to uint8 binary mask (0 or 255)
-        binary_mask = (mask > 0).astype(np.uint8) * 255
+        binary_mask = (mask > 0).astype(np.uint8) * MASK_FOREGROUND_VALUE
         
         # Log statistics
         mask_area = np.sum(mask > 0)
