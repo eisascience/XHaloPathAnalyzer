@@ -15,6 +15,7 @@ Web-based GUI for digital pathology analysis with Halo API integration
 import streamlit as st
 import asyncio
 import numpy as np
+import cv2
 from pathlib import Path
 import pandas as pd
 from datetime import datetime
@@ -27,7 +28,7 @@ from utils.image_proc import (
     overlay_mask_on_image,
     compute_mask_statistics
 )
-from utils.ml_models import MedSAMPredictor as UtilsMedSAMPredictor
+from utils.ml_models import MedSAMPredictor as UtilsMedSAMPredictor, _ensure_rgb_uint8, _compute_tissue_bbox
 from utils.geojson_utils import (
     mask_to_polygons,
     polygons_to_geojson
@@ -559,6 +560,18 @@ def analysis_page():
                     
                     # Run inference directly on original image (no preprocessing)
                     st.info(f"⏳ Running MedSAM segmentation with {prompt_mode} prompt...")
+                    
+                    # Compute prompt box for visualization
+                    prompt_box = None
+                    if prompt_mode == "auto_box":
+                        image_rgb = _ensure_rgb_uint8(image)
+                        prompt_box = _compute_tissue_bbox(image_rgb, min_area_ratio, morph_kernel_size)
+                        st.info(f"📦 Detected tissue box: {prompt_box}")
+                    elif prompt_mode == "full_box":
+                        h, w = image.shape[:2]
+                        prompt_box = np.array([0, 0, w - 1, h - 1])
+                        st.info(f"📦 Using full image box: {prompt_box}")
+                    
                     mask = st.session_state.predictor.predict(
                         image,
                         prompt_mode=prompt_mode,
@@ -582,7 +595,9 @@ def analysis_page():
                         'statistics': stats,
                         'slide_id': slide['id'],
                         'slide_name': slide['name'],
-                        'timestamp': datetime.now().isoformat()
+                        'timestamp': datetime.now().isoformat(),
+                        'prompt_box': prompt_box,
+                        'prompt_mode': prompt_mode
                     }
                     
                     st.success("✅ Analysis complete!")
@@ -626,6 +641,13 @@ def analysis_page():
         # Debug information for mask
         mask = results['mask']
         st.write("**Debug Info:**")
+        st.write(f"Prompt mode: {results.get('prompt_mode', 'unknown')}")
+        if results.get('prompt_box') is not None:
+            prompt_box = results['prompt_box']
+            st.write(f"Prompt box: [{prompt_box[0]}, {prompt_box[1]}, {prompt_box[2]}, {prompt_box[3]}]")
+            box_area = (prompt_box[2] - prompt_box[0]) * (prompt_box[3] - prompt_box[1])
+            img_area = mask.shape[0] * mask.shape[1]
+            st.write(f"Prompt box area: {box_area:,} pixels ({100*box_area/img_area:.1f}% of image)")
         st.write(f"Mask dtype: {mask.dtype}, shape: {mask.shape}")
         st.write(f"Mask min/max: {float(np.min(mask))}, {float(np.max(mask))}")
         
@@ -644,7 +666,22 @@ def analysis_page():
         st.write(f"Binary mask unique values: {np.unique(mask_bin)}")
         st.write(f"Binary mask sum (positive pixels): {int(mask_bin.sum())}")
         
-        col1, col2, col3 = st.columns(3)
+        # Create prompt box overlay for visualization if available
+        if results.get('prompt_box') is not None:
+            prompt_box = results['prompt_box']
+            img_with_box = results['image'].copy()
+            # Draw rectangle on image
+            x1, y1, x2, y2 = prompt_box.astype(int)
+            img_with_box = cv2.rectangle(img_with_box, (x1, y1), (x2, y2), (0, 255, 0), 3)
+            # Add text label
+            cv2.putText(img_with_box, f"Prompt: {results.get('prompt_mode', 'box')}", 
+                       (x1, max(y1-10, 20)), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        
+        # Display images in columns
+        if results.get('prompt_box') is not None:
+            col1, col2, col3, col4 = st.columns(4)
+        else:
+            col1, col2, col3 = st.columns(3)
         
         with col1:
             st.image(results['image'], caption="Original Image", use_container_width=True)
@@ -663,6 +700,10 @@ def analysis_page():
                 alpha=0.5
             )
             st.image(overlay, caption="Overlay", use_container_width=True)
+        
+        if results.get('prompt_box') is not None:
+            with col4:
+                st.image(img_with_box, caption="Prompt Box", use_container_width=True)
 
 
 def export_page():
