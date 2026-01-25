@@ -15,6 +15,7 @@ Web-based GUI for digital pathology analysis with Halo API integration
 import streamlit as st
 import asyncio
 import numpy as np
+import cv2
 from pathlib import Path
 import pandas as pd
 from datetime import datetime
@@ -24,12 +25,10 @@ from config import Config
 from utils.halo_api import HaloAPI
 from utils.image_proc import (
     load_image_from_bytes,
-    preprocess_for_medsam,
-    postprocess_mask,
     overlay_mask_on_image,
     compute_mask_statistics
 )
-from utils.ml_models import MedSAMPredictor as UtilsMedSAMPredictor
+from utils.ml_models import MedSAMPredictor as UtilsMedSAMPredictor, _ensure_rgb_uint8, _compute_tissue_bbox
 from utils.geojson_utils import (
     mask_to_polygons,
     polygons_to_geojson
@@ -43,6 +42,15 @@ from typing import Optional, List, Dict, Any
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Constants for visualization
+PROMPT_BOX_COLOR = (0, 255, 0)  # Green in RGB
+PROMPT_BOX_THICKNESS = 3
+PROMPT_BOX_LABEL_FONT = cv2.FONT_HERSHEY_SIMPLEX
+PROMPT_BOX_LABEL_SCALE = 1.0
+PROMPT_BOX_LABEL_THICKNESS = 2
+PROMPT_BOX_LABEL_Y_OFFSET = 10
+PROMPT_BOX_LABEL_MIN_Y = 20
 
 # Import local modules
 from xhalo.api import HaloAPIClient, MockHaloAPIClient
@@ -478,6 +486,43 @@ def analysis_page():
     # Analysis settings
     st.subheader("⚙️ Analysis Settings")
     
+    # Segmentation prompt settings
+    st.write("**Segmentation Prompt Mode**")
+    prompt_mode = st.selectbox(
+        "Prompt Mode",
+        options=["auto_box", "full_box", "point"],
+        index=0,
+        help="auto_box: Auto-detect tissue region; full_box: Use entire image; point: Use center point"
+    )
+    
+    # Advanced settings in expander
+    with st.expander("Advanced Segmentation Settings"):
+        col_a, col_b = st.columns(2)
+        with col_a:
+            min_area_ratio = st.slider(
+                "Min Area Ratio",
+                min_value=0.001,
+                max_value=0.1,
+                value=0.01,
+                step=0.001,
+                format="%.3f",
+                help="Minimum area ratio for tissue detection (used in auto_box mode)"
+            )
+            morph_kernel_size = st.slider(
+                "Morph Kernel Size",
+                min_value=3,
+                max_value=15,
+                value=5,
+                step=2,
+                help="Kernel size for morphological operations (used in auto_box mode)"
+            )
+        with col_b:
+            multimask_output = st.checkbox(
+                "Multi-mask Output",
+                value=False,
+                help="Generate multiple mask predictions and select the best one"
+            )
+    
     use_prompts = st.checkbox("Use point/box prompts", value=False, 
                              help="Enable interactive prompts for segmentation")
     
@@ -522,32 +567,46 @@ def analysis_page():
                             device=Config.DEVICE
                         )
                     
-                    # Preprocess
-                    st.info("⏳ Preprocessing image...")
-                    preprocessed, metadata = preprocess_for_medsam(image, Config.DEFAULT_TARGET_SIZE)
+                    # Run inference directly on original image (no preprocessing)
+                    st.info(f"⏳ Running MedSAM segmentation with {prompt_mode} prompt...")
                     
-                    # Run inference
-                    st.info("⏳ Running MedSAM segmentation...")
-                    mask = st.session_state.predictor.predict(preprocessed)
+                    # Compute prompt box for visualization
+                    prompt_box = None
+                    if prompt_mode == "auto_box":
+                        image_rgb = _ensure_rgb_uint8(image)
+                        prompt_box = _compute_tissue_bbox(image_rgb, min_area_ratio, morph_kernel_size)
+                        st.info(f"📦 Detected tissue box: {prompt_box}")
+                    elif prompt_mode == "full_box":
+                        h, w = image.shape[:2]
+                        prompt_box = np.array([0, 0, w - 1, h - 1])
+                        st.info(f"📦 Using full image box: {prompt_box}")
                     
-                    # Postprocess
-                    st.info("⏳ Postprocessing results...")
-                    final_mask = postprocess_mask(mask, metadata)
-                    st.session_state.current_mask = final_mask
+                    mask = st.session_state.predictor.predict(
+                        image,
+                        prompt_mode=prompt_mode,
+                        multimask_output=multimask_output,
+                        min_area_ratio=min_area_ratio,
+                        morph_kernel_size=morph_kernel_size
+                    )
+                    
+                    # Store mask directly (already at original image size)
+                    st.session_state.current_mask = mask
                     
                     # Compute statistics
                     mpp = slide.get('mpp')
-                    stats = compute_mask_statistics(final_mask, mpp)
+                    stats = compute_mask_statistics(mask, mpp)
                     
                     # Store results
                     st.session_state.analysis_results = {
                         'image': image,
-                        'mask': final_mask,
+                        'mask': mask,
                         'roi': (x, y, width, height),
                         'statistics': stats,
                         'slide_id': slide['id'],
                         'slide_name': slide['name'],
-                        'timestamp': datetime.now().isoformat()
+                        'timestamp': datetime.now().isoformat(),
+                        'prompt_box': prompt_box,
+                        'prompt_mode': prompt_mode
                     }
                     
                     st.success("✅ Analysis complete!")
@@ -591,6 +650,13 @@ def analysis_page():
         # Debug information for mask
         mask = results['mask']
         st.write("**Debug Info:**")
+        st.write(f"Prompt mode: {results.get('prompt_mode', 'unknown')}")
+        if results.get('prompt_box') is not None:
+            prompt_box = results['prompt_box']
+            st.write(f"Prompt box: [{prompt_box[0]}, {prompt_box[1]}, {prompt_box[2]}, {prompt_box[3]}]")
+            box_area = (prompt_box[2] - prompt_box[0]) * (prompt_box[3] - prompt_box[1])
+            img_area = mask.shape[0] * mask.shape[1]
+            st.write(f"Prompt box area: {box_area:,} pixels ({100*box_area/img_area:.1f}% of image)")
         st.write(f"Mask dtype: {mask.dtype}, shape: {mask.shape}")
         st.write(f"Mask min/max: {float(np.min(mask))}, {float(np.max(mask))}")
         
@@ -609,7 +675,25 @@ def analysis_page():
         st.write(f"Binary mask unique values: {np.unique(mask_bin)}")
         st.write(f"Binary mask sum (positive pixels): {int(mask_bin.sum())}")
         
-        col1, col2, col3 = st.columns(3)
+        # Create prompt box overlay for visualization if available
+        if results.get('prompt_box') is not None:
+            prompt_box = results['prompt_box']
+            img_with_box = results['image'].copy()
+            # Draw rectangle on image
+            x1, y1, x2, y2 = prompt_box.astype(int)
+            img_with_box = cv2.rectangle(img_with_box, (x1, y1), (x2, y2), 
+                                        PROMPT_BOX_COLOR, PROMPT_BOX_THICKNESS)
+            # Add text label
+            label_y = max(y1 - PROMPT_BOX_LABEL_Y_OFFSET, PROMPT_BOX_LABEL_MIN_Y)
+            cv2.putText(img_with_box, f"Prompt: {results.get('prompt_mode', 'box')}", 
+                       (x1, label_y), PROMPT_BOX_LABEL_FONT, PROMPT_BOX_LABEL_SCALE,
+                       PROMPT_BOX_COLOR, PROMPT_BOX_LABEL_THICKNESS)
+        
+        # Display images in columns
+        if results.get('prompt_box') is not None:
+            col1, col2, col3, col4 = st.columns(4)
+        else:
+            col1, col2, col3 = st.columns(3)
         
         with col1:
             st.image(results['image'], caption="Original Image", use_container_width=True)
@@ -628,6 +712,10 @@ def analysis_page():
                 alpha=0.5
             )
             st.image(overlay, caption="Overlay", use_container_width=True)
+        
+        if results.get('prompt_box') is not None:
+            with col4:
+                st.image(img_with_box, caption="Prompt Box", use_container_width=True)
 
 
 def export_page():
