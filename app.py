@@ -459,12 +459,12 @@ def post_process_mask(mask: np.ndarray,
     
     # Morphological operations
     if morph_open_radius > 0:
-        selem = morphology.disk(morph_open_radius)
-        binary = morphology.binary_opening(binary, selem)
+        footprint = morphology.disk(morph_open_radius)
+        binary = morphology.opening(binary, footprint)
     
     if morph_close_radius > 0:
-        selem = morphology.disk(morph_close_radius)
-        binary = morphology.binary_closing(binary, selem)
+        footprint = morphology.disk(morph_close_radius)
+        binary = morphology.closing(binary, footprint)
     
     # Fill holes
     if fill_holes:
@@ -472,7 +472,9 @@ def post_process_mask(mask: np.ndarray,
     
     # Remove small objects
     if min_area_px > 0:
-        binary = morphology.remove_small_objects(binary, min_size=min_area_px)
+        # Note: max_size parameter removes objects smaller than or equal to the threshold
+        # We use min_area_px - 1 to remove objects strictly smaller than min_area_px
+        binary = morphology.remove_small_objects(binary, max_size=min_area_px - 1 if min_area_px > 1 else 0)
     
     # Instance segmentation
     instance_mask = None
