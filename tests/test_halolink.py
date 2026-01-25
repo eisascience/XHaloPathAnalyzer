@@ -348,6 +348,18 @@ class TestGraphQLExecution:
         
         assert endpoint == "https://halolink.example.com/api/graphql"
     
+    def test_get_graphql_endpoint_with_path_no_leading_slash(self):
+        """Test GraphQL endpoint resolution with path without leading slash"""
+        client = HaloLinkClient(
+            base_url="https://halolink.example.com",
+            graphql_path="api/graphql"
+        )
+        
+        endpoint = client._get_graphql_endpoint()
+        
+        # Should normalize path to include leading slash
+        assert endpoint == "https://halolink.example.com/api/graphql"
+    
     def test_get_graphql_endpoint_default(self):
         """Test GraphQL endpoint resolution with default"""
         client = HaloLinkClient(base_url="https://halolink.example.com")

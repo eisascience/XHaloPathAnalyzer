@@ -251,7 +251,9 @@ class HaloLinkClient:
         if self.graphql_url:
             return self.graphql_url
         elif self.graphql_path:
-            return f"{self.base_url}{self.graphql_path}"
+            # Normalize path to ensure it starts with /
+            path = self.graphql_path if self.graphql_path.startswith('/') else f'/{self.graphql_path}'
+            return f"{self.base_url}{path}"
         else:
             # Default to /graphql if not specified
             return f"{self.base_url}/graphql"

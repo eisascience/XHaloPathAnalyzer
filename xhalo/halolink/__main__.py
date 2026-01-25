@@ -1,5 +1,5 @@
 """
-Allow smoke test to be run as a module: python -m xhalo.halolink.smoketest
+Allow smoke test to be run as a module: python -m xhalo.halolink
 """
 
 from .smoketest import main
