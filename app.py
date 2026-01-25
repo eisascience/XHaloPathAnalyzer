@@ -341,14 +341,30 @@ def run_analysis_on_item(item: Dict[str, Any], prompt_mode: str = "auto_box",
     Run analysis on a single image item.
     
     Args:
-        item: Image item dict with 'bytes' field
+        item: Image item dict with 'bytes' field containing raw image data
         prompt_mode: Segmentation prompt mode (auto_box, full_box, point)
         multimask_output: Whether to generate multiple mask predictions
-        min_area_ratio: Minimum area ratio for tissue detection
-        morph_kernel_size: Kernel size for morphological operations
+        min_area_ratio: Minimum area ratio for tissue detection (0-1)
+        morph_kernel_size: Kernel size for morphological operations (odd integer)
         
     Returns:
-        Dict with analysis results (image, mask, statistics, visualizations, etc.)
+        Dict with the following keys:
+            - image: numpy.ndarray - Original RGB image (H, W, 3)
+            - mask: numpy.ndarray - Binary segmentation mask (H, W)
+            - statistics: dict - Mask statistics (num_positive_pixels, coverage_percent, etc.)
+            - overlay: numpy.ndarray - Image with mask overlay
+            - prompt_box: numpy.ndarray or None - Bounding box used for prompt [x1, y1, x2, y2]
+            - img_with_box: numpy.ndarray or None - Image with prompt box visualization
+            - prompt_mode: str - Prompt mode used
+            - timestamp: str - ISO format timestamp
+    
+    Raises:
+        Exception: If image loading, segmentation, or processing fails
+        
+    Example:
+        >>> item = {'bytes': image_bytes, 'name': 'test.png', ...}
+        >>> result = run_analysis_on_item(item, prompt_mode='auto_box')
+        >>> print(result['statistics']['coverage_percent'])
     """
     # Decode bytes to RGB uint8 numpy
     image = load_image_from_bytes(item['bytes'])
@@ -445,18 +461,14 @@ def image_upload_page():
         # Automatically populate session_state.images from uploaded files
         # Create unique IDs based on filename and file size
         uploaded_ids = set()
+        existing_ids = {img['id'] for img in st.session_state.images}  # O(1) lookup
+        
         for uploaded_file in uploaded_files:
             file_id = f"{uploaded_file.name}_{uploaded_file.size}"
             uploaded_ids.add(file_id)
             
-            # Check if this image is already in the list
-            existing = False
-            for img in st.session_state.images:
-                if img['id'] == file_id:
-                    existing = True
-                    break
-            
-            if not existing:
+            # Check if this image is already in the list (O(1) lookup)
+            if file_id not in existing_ids:
                 # Read bytes
                 image_bytes = uploaded_file.read()
                 uploaded_file.seek(0)  # Reset file pointer
@@ -502,7 +514,8 @@ def image_upload_page():
                             thumb_h = 100
                             thumb_w = int(w * thumb_h / h)
                             thumbnail = cv2.resize(thumbnail, (thumb_w, thumb_h))
-                except:
+                except Exception as e:
+                    # Handle image loading/processing errors gracefully
                     thumbnail = None
                 
                 # Get dimensions
@@ -512,7 +525,8 @@ def image_upload_page():
                     else:
                         temp_img = load_image_from_bytes(img['bytes'])
                         dims = f"{temp_img.shape[1]} × {temp_img.shape[0]}"
-                except:
+                except Exception as e:
+                    # Handle image loading errors gracefully
                     dims = "Unknown"
                 
                 table_data.append({
