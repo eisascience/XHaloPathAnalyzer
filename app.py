@@ -24,8 +24,6 @@ from config import Config
 from utils.halo_api import HaloAPI
 from utils.image_proc import (
     load_image_from_bytes,
-    preprocess_for_medsam,
-    postprocess_mask,
     overlay_mask_on_image,
     compute_mask_statistics
 )
@@ -478,6 +476,43 @@ def analysis_page():
     # Analysis settings
     st.subheader("⚙️ Analysis Settings")
     
+    # Segmentation prompt settings
+    st.write("**Segmentation Prompt Mode**")
+    prompt_mode = st.selectbox(
+        "Prompt Mode",
+        options=["auto_box", "full_box", "point"],
+        index=0,
+        help="auto_box: Auto-detect tissue region; full_box: Use entire image; point: Use center point"
+    )
+    
+    # Advanced settings in expander
+    with st.expander("Advanced Segmentation Settings"):
+        col_a, col_b = st.columns(2)
+        with col_a:
+            min_area_ratio = st.slider(
+                "Min Area Ratio",
+                min_value=0.001,
+                max_value=0.1,
+                value=0.01,
+                step=0.001,
+                format="%.3f",
+                help="Minimum area ratio for tissue detection (used in auto_box mode)"
+            )
+            morph_kernel_size = st.slider(
+                "Morph Kernel Size",
+                min_value=3,
+                max_value=15,
+                value=5,
+                step=2,
+                help="Kernel size for morphological operations (used in auto_box mode)"
+            )
+        with col_b:
+            multimask_output = st.checkbox(
+                "Multi-mask Output",
+                value=False,
+                help="Generate multiple mask predictions and select the best one"
+            )
+    
     use_prompts = st.checkbox("Use point/box prompts", value=False, 
                              help="Enable interactive prompts for segmentation")
     
@@ -522,27 +557,27 @@ def analysis_page():
                             device=Config.DEVICE
                         )
                     
-                    # Preprocess
-                    st.info("⏳ Preprocessing image...")
-                    preprocessed, metadata = preprocess_for_medsam(image, Config.DEFAULT_TARGET_SIZE)
+                    # Run inference directly on original image (no preprocessing)
+                    st.info(f"⏳ Running MedSAM segmentation with {prompt_mode} prompt...")
+                    mask = st.session_state.predictor.predict(
+                        image,
+                        prompt_mode=prompt_mode,
+                        multimask_output=multimask_output,
+                        min_area_ratio=min_area_ratio,
+                        morph_kernel_size=morph_kernel_size
+                    )
                     
-                    # Run inference
-                    st.info("⏳ Running MedSAM segmentation...")
-                    mask = st.session_state.predictor.predict(preprocessed)
-                    
-                    # Postprocess
-                    st.info("⏳ Postprocessing results...")
-                    final_mask = postprocess_mask(mask, metadata)
-                    st.session_state.current_mask = final_mask
+                    # Store mask directly (already at original image size)
+                    st.session_state.current_mask = mask
                     
                     # Compute statistics
                     mpp = slide.get('mpp')
-                    stats = compute_mask_statistics(final_mask, mpp)
+                    stats = compute_mask_statistics(mask, mpp)
                     
                     # Store results
                     st.session_state.analysis_results = {
                         'image': image,
-                        'mask': final_mask,
+                        'mask': mask,
                         'roi': (x, y, width, height),
                         'statistics': stats,
                         'slide_id': slide['id'],
