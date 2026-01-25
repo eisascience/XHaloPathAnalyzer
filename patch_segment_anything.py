@@ -41,7 +41,7 @@ def patch_build_sam(segment_anything_path):
     
     # Check if already patched
     if 'map_location="cpu"' in content or 'map_location = "cpu"' in content:
-        print("✓ build_sam.py is already patched.")
+        print(" build_sam.py is already patched.")
         return True
     
     # Pattern to match torch.load with weights_only parameter
@@ -65,13 +65,13 @@ def patch_build_sam(segment_anything_path):
     backup_path = build_sam_path.with_suffix('.py.bak')
     with open(backup_path, 'w') as f:
         f.write(content)
-    print(f"✓ Created backup at {backup_path}")
+    print(f" Created backup at {backup_path}")
     
     # Write the patched content
     with open(build_sam_path, 'w') as f:
         f.write(new_content)
     
-    print(f"✓ Successfully patched {build_sam_path}")
+    print(f" Successfully patched {build_sam_path}")
     print("\nThe change ensures that SAM checkpoints saved from CUDA devices")
     print("can be loaded on CPU-only machines.")
     return True
@@ -93,10 +93,10 @@ def main():
     success = patch_build_sam(segment_anything_path)
     
     if success:
-        print("\n✓ Patch completed successfully!")
+        print("\n Patch completed successfully!")
         return 0
     else:
-        print("\n✗ Patch failed. Manual intervention may be required.")
+        print("\n Patch failed. Manual intervention may be required.")
         return 1
 
 

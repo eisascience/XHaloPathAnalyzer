@@ -18,26 +18,26 @@ Fixed the segmentation by implementing proper SAM inference workflow:
 ### 1. `utils/ml_models.py` (Major Changes)
 **New Helper Functions:**
 - `_ensure_rgb_uint8()`: Converts images to HWC RGB uint8 format
-  - Handles float [0,1] → uint8 [0,255] conversion
-  - Converts grayscale to 3-channel RGB
-  - Robust handling of various input formats
+ - Handles float [0,1] → uint8 [0,255] conversion
+ - Converts grayscale to 3-channel RGB
+ - Robust handling of various input formats
 
 - `_compute_tissue_bbox()`: Auto-detects tissue regions
-  - Uses Otsu thresholding to separate tissue from background
-  - Applies morphological operations to clean up
-  - Finds largest connected component as tissue region
-  - Returns bounding box [x1, y1, x2, y2]
-  - Fallback to full image if detection fails
+ - Uses Otsu thresholding to separate tissue from background
+ - Applies morphological operations to clean up
+ - Finds largest connected component as tissue region
+ - Returns bounding box [x1, y1, x2, y2]
+ - Fallback to full image if detection fails
 
 **Updated MedSAMPredictor Class:**
 - `__init__()`: Now creates `self.sam_predictor = SamPredictor(model)`
 - `predict()`: Complete rewrite to use proper SAM API
-  - New parameter `prompt_mode`: "auto_box" (default), "full_box", or "point"
-  - New parameters: `min_area_ratio`, `morph_kernel_size`, `multimask_output`
-  - Uses `sam_predictor.set_image()` for image encoding
-  - Uses `sam_predictor.predict()` for mask generation
-  - Returns uint8 binary mask (0 or 255) instead of boolean
-  - Extensive debug logging for troubleshooting
+ - New parameter `prompt_mode`: "auto_box" (default), "full_box", or "point"
+ - New parameters: `min_area_ratio`, `morph_kernel_size`, `multimask_output`
+ - Uses `sam_predictor.set_image()` for image encoding
+ - Uses `sam_predictor.predict()` for mask generation
+ - Returns uint8 binary mask (0 or 255) instead of boolean
+ - Extensive debug logging for troubleshooting
 
 **Constants Added:**
 - `NORMALIZED_IMAGE_THRESHOLD = 1.5`: Detect [0,1] vs [0,255] images
@@ -54,9 +54,9 @@ Fixed the segmentation by implementing proper SAM inference workflow:
 **Added UI Controls:**
 - Prompt mode selector: "auto_box", "full_box", "point"
 - Advanced settings expander:
-  - `min_area_ratio` slider (0.001-0.1)
-  - `morph_kernel_size` slider (3-15)
-  - `multimask_output` checkbox
+ - `min_area_ratio` slider (0.001-0.1)
+ - `morph_kernel_size` slider (3-15)
+ - `multimask_output` checkbox
 
 **Updated Inference Flow:**
 - Pass original image directly to `predict()`
@@ -130,33 +130,33 @@ Users can now:
 ## Testing Results
 
 ### Unit Tests
-✅ All 6 standalone tests pass:
+All 6 standalone tests pass:
 - Image format conversions
 - Tissue detection on synthetic images
 - Edge cases (empty images, small regions)
 
 ### Code Quality
-✅ No syntax errors
-✅ Code review completed, all feedback addressed
-✅ CodeQL security scan: 0 alerts
-✅ All magic numbers extracted to named constants
-✅ Comprehensive docstrings with examples
+No syntax errors
+Code review completed, all feedback addressed
+CodeQL security scan: 0 alerts
+All magic numbers extracted to named constants
+Comprehensive docstrings with examples
 
 ## Acceptance Criteria Met
 
-✅ **Mask covers main tissue region, not tiny center blob**
+**Mask covers main tissue region, not tiny center blob**
 - Auto-detection algorithm finds largest tissue component
 - Default uses bounding box prompt, not point
 
-✅ **Mask area > 5% for tissue-heavy samples**
+**Mask area > 5% for tissue-heavy samples**
 - Configurable via `min_area_ratio` parameter
 - Debug display shows mask coverage percentage
 
-✅ **Works on CPU-only**
+**Works on CPU-only**
 - No CUDA required
 - Uses map_location for safe model loading
 
-✅ **Handles typical brightfield pathology images**
+**Handles typical brightfield pathology images**
 - Adaptive thresholding handles dark tissue on light background
 - Morphological operations clean up noise
 
@@ -184,17 +184,17 @@ UI changes are minimal:
 ## Known Limitations
 
 1. **Tissue detection assumes**:
-   - Tissue is darker than background (typical for H&E)
-   - Single largest tissue region is the target
-   - May not work well with multi-tissue samples
+ - Tissue is darker than background (typical for H&E)
+ - Single largest tissue region is the target
+ - May not work well with multi-tissue samples
 
 2. **Fallback behavior**:
-   - Falls back to full image box if detection fails
-   - May still give suboptimal results on very challenging images
+ - Falls back to full image box if detection fails
+ - May still give suboptimal results on very challenging images
 
 3. **UI testing**:
-   - No actual Streamlit app testing performed
-   - Manual testing required to verify UI changes
+ - No actual Streamlit app testing performed
+ - Manual testing required to verify UI changes
 
 ## Next Steps
 
