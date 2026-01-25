@@ -51,6 +51,9 @@ PROMPT_BOX_LABEL_THICKNESS = 2
 PROMPT_BOX_LABEL_Y_OFFSET = 10
 PROMPT_BOX_LABEL_MIN_Y = 20
 
+# Channel mapping constant
+CHANNEL_INDEX_MAP = {'R': 0, 'G': 1, 'B': 2}
+
 # Import local modules
 from xhalo.api import HaloAPIClient, MockHaloAPIClient
 from xhalo.ml import MedSAMPredictor as XHaloMedSAMPredictor, segment_tissue
@@ -332,11 +335,201 @@ def slide_selection_page():
         st.success(f"Selected: {selected_slide['name']}")
 
 
+def prepare_channel_input(image: np.ndarray, channel_config: Dict[str, Any]) -> List[Tuple[np.ndarray, str]]:
+    """
+    Prepare channel input(s) for MedSAM based on channel configuration.
+    
+    Args:
+        image: RGB uint8 image (H, W, 3)
+        channel_config: Dict with 'mode' and 'channels' keys
+            mode: 'rgb', 'single', or 'multi'
+            channels: list of channel names ['R', 'G', 'B'] for single/multi mode
+    
+    Returns:
+        List of tuples (processed_image, channel_name) where processed_image is (H, W, 3) uint8
+    """
+    mode = channel_config.get('mode', 'rgb')
+    selected_channels = channel_config.get('channels', ['R', 'G', 'B'])
+    
+    if mode == 'rgb':
+        # RGB composite - return as-is
+        return [(image, 'RGB')]
+    
+    elif mode == 'single':
+        # Single channel - replicate into 3 channels
+        if not selected_channels:
+            selected_channels = ['R']
+        
+        channel_name = selected_channels[0]
+        channel_idx = CHANNEL_INDEX_MAP[channel_name]
+        single_channel = image[:, :, channel_idx]
+        
+        # Replicate to 3 channels
+        three_channel = np.stack([single_channel, single_channel, single_channel], axis=-1)
+        return [(three_channel, channel_name)]
+    
+    elif mode == 'multi':
+        # Multi-channel - generate one image per selected channel
+        results = []
+        for channel_name in selected_channels:
+            channel_idx = CHANNEL_INDEX_MAP[channel_name]
+            single_channel = image[:, :, channel_idx]
+            three_channel = np.stack([single_channel, single_channel, single_channel], axis=-1)
+            results.append((three_channel, channel_name))
+        return results
+    
+    # Default fallback
+    return [(image, 'RGB')]
+
+
+def merge_channel_masks(channel_masks: Dict[str, np.ndarray], merge_mode: str, k_value: int = 1) -> np.ndarray:
+    """
+    Merge masks from multiple channels.
+    
+    Args:
+        channel_masks: Dict mapping channel name to binary mask (H, W)
+        merge_mode: 'union', 'intersection', or 'voting'
+        k_value: For voting mode, require k out of n channels to be positive
+    
+    Returns:
+        Merged binary mask (H, W)
+    """
+    if not channel_masks:
+        return None
+    
+    masks_list = list(channel_masks.values())
+    
+    if merge_mode == 'union':
+        # Any channel positive
+        merged = np.zeros_like(masks_list[0], dtype=bool)
+        for mask in masks_list:
+            merged |= mask > 0
+        return merged.astype(np.uint8) * 255
+    
+    elif merge_mode == 'intersection':
+        # All channels positive
+        merged = np.ones_like(masks_list[0], dtype=bool)
+        for mask in masks_list:
+            merged &= mask > 0
+        return merged.astype(np.uint8) * 255
+    
+    elif merge_mode == 'voting':
+        # k out of n channels positive
+        vote_sum = np.zeros_like(masks_list[0], dtype=int)
+        for mask in masks_list:
+            vote_sum += (mask > 0).astype(int)
+        merged = vote_sum >= k_value
+        return merged.astype(np.uint8) * 255
+    
+    # Default: union
+    merged = np.zeros_like(masks_list[0], dtype=bool)
+    for mask in masks_list:
+        merged |= mask > 0
+    return merged.astype(np.uint8) * 255
+
+
+def post_process_mask(mask: np.ndarray, 
+                      min_area_px: int = 0,
+                      fill_holes: bool = False,
+                      morph_open_radius: int = 0,
+                      morph_close_radius: int = 0,
+                      watershed_split: bool = False,
+                      min_distance: int = 10) -> Dict[str, Any]:
+    """
+    Post-process binary mask with cleaning and optional instance segmentation.
+    
+    Args:
+        mask: Binary mask (H, W) uint8
+        min_area_px: Remove objects smaller than this (in pixels)
+        fill_holes: Fill holes in objects
+        morph_open_radius: Morphological opening radius (0 = skip)
+        morph_close_radius: Morphological closing radius (0 = skip)
+        watershed_split: Apply watershed for instance segmentation
+        min_distance: Minimum distance for watershed seed detection
+    
+    Returns:
+        Dict with:
+            - binary_mask: Cleaned binary mask
+            - instance_mask: Instance label image (int32) if watershed enabled, else None
+            - measurements: List of per-object measurements
+    """
+    from skimage import morphology, measure
+    from skimage.segmentation import watershed
+    from scipy import ndimage as ndi
+    
+    # Convert to binary if needed
+    binary = mask > 0
+    
+    # Morphological operations
+    if morph_open_radius > 0:
+        footprint = morphology.disk(morph_open_radius)
+        binary = morphology.opening(binary, footprint)
+    
+    if morph_close_radius > 0:
+        footprint = morphology.disk(morph_close_radius)
+        binary = morphology.closing(binary, footprint)
+    
+    # Fill holes
+    if fill_holes:
+        binary = ndi.binary_fill_holes(binary)
+    
+    # Remove small objects
+    if min_area_px > 0:
+        # Note: max_size parameter removes objects with area <= threshold (new API in scikit-image 0.26+)
+        binary = morphology.remove_small_objects(binary, max_size=min_area_px)
+    
+    # Instance segmentation
+    instance_mask = None
+    measurements = []
+    
+    if watershed_split and np.any(binary):
+        # Compute distance transform
+        distance = ndi.distance_transform_edt(binary)
+        
+        # Find peaks (local maxima)
+        from skimage.feature import peak_local_max
+        coords = peak_local_max(distance, min_distance=min_distance, labels=binary)
+        
+        # Create markers
+        markers = np.zeros_like(binary, dtype=int)
+        for i, coord in enumerate(coords):
+            markers[coord[0], coord[1]] = i + 1
+        
+        # Apply watershed
+        if np.max(markers) > 0:
+            instance_mask = watershed(-distance, markers, mask=binary)
+        else:
+            # No peaks found, use connected components
+            instance_mask = measure.label(binary)
+    else:
+        # Just use connected components for measurements
+        instance_mask = measure.label(binary)
+    
+    # Compute measurements
+    if instance_mask is not None and np.max(instance_mask) > 0:
+        props = measure.regionprops(instance_mask)
+        for prop in props:
+            measurements.append({
+                'label': prop.label,
+                'area': prop.area,
+                'centroid': prop.centroid,
+                'bbox': prop.bbox
+            })
+    
+    return {
+        'binary_mask': binary.astype(np.uint8) * 255,
+        'instance_mask': instance_mask,
+        'measurements': measurements
+    }
+
+
 def run_analysis_on_item(item: Dict[str, Any], prompt_mode: str = "auto_box", 
                          multimask_output: bool = False, 
                          min_area_ratio: float = 0.01,
-                         morph_kernel_size: int = 5) -> Dict[str, Any]:
-    """Run analysis on a single image item.
+                         morph_kernel_size: int = 5,
+                         post_processing: Optional[Dict[str, Any]] = None,
+                         merge_config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Run analysis on a single image item with channel and post-processing support.
     
     Args:
         item: Image item dict with 'bytes' field containing raw image data
@@ -344,11 +537,18 @@ def run_analysis_on_item(item: Dict[str, Any], prompt_mode: str = "auto_box",
         multimask_output: Whether to generate multiple mask predictions
         min_area_ratio: Minimum area ratio for tissue detection (0-1)
         morph_kernel_size: Kernel size for morphological operations (odd integer)
+        post_processing: Dict with post-processing params (min_area_px, fill_holes, etc.)
+        merge_config: Dict with merge mode and k_value for multi-channel merging
         
     Returns:
         Dict with the following keys:
             - image: numpy.ndarray - Original RGB image (H, W, 3)
             - mask: numpy.ndarray - Binary segmentation mask (H, W)
+            - channel_masks: dict - Per-channel masks if multi-channel mode
+            - mask_merged: numpy.ndarray - Merged mask if multi-channel mode
+            - binary_mask: numpy.ndarray - Post-processed binary mask
+            - instance_mask: numpy.ndarray - Instance label image if watershed enabled
+            - measurements: list - Per-object measurements
             - statistics: dict - Mask statistics (num_positive_pixels, coverage_percent, etc.)
             - overlay: numpy.ndarray - Image with mask overlay
             - prompt_box: numpy.ndarray or None - Bounding box used for prompt [x1, y1, x2, y2]
@@ -376,37 +576,80 @@ def run_analysis_on_item(item: Dict[str, Any], prompt_mode: str = "auto_box",
             device=Config.DEVICE
         )
     
-    # Compute prompt box for visualization
+    # Get channel configuration
+    channel_config = item.get('channel_config', {'mode': 'rgb', 'channels': ['R', 'G', 'B']})
+    
+    # Prepare channel inputs
+    channel_inputs = prepare_channel_input(image, channel_config)
+    
+    # Run segmentation on each channel
+    channel_masks = {}
     prompt_box = None
-    if prompt_mode == "auto_box":
-        image_rgb = _ensure_rgb_uint8(image)
-        prompt_box = _compute_tissue_bbox(image_rgb, min_area_ratio, morph_kernel_size)
-    elif prompt_mode == "full_box":
-        h, w = image.shape[:2]
-        prompt_box = np.array([0, 0, w - 1, h - 1])
+    img_with_box = None
     
-    # Run segmentation
-    mask = st.session_state.predictor.predict(
-        image,
-        prompt_mode=prompt_mode,
-        multimask_output=multimask_output,
-        min_area_ratio=min_area_ratio,
-        morph_kernel_size=morph_kernel_size
-    )
+    for channel_image, channel_name in channel_inputs:
+        # Compute prompt box for visualization (only for first channel)
+        if prompt_box is None:
+            if prompt_mode == "auto_box":
+                image_rgb = _ensure_rgb_uint8(channel_image)
+                prompt_box = _compute_tissue_bbox(image_rgb, min_area_ratio, morph_kernel_size)
+            elif prompt_mode == "full_box":
+                h, w = channel_image.shape[:2]
+                prompt_box = np.array([0, 0, w - 1, h - 1])
+        
+        # Run segmentation
+        channel_mask = st.session_state.predictor.predict(
+            channel_image,
+            prompt_mode=prompt_mode,
+            multimask_output=multimask_output,
+            min_area_ratio=min_area_ratio,
+            morph_kernel_size=morph_kernel_size
+        )
+        
+        channel_masks[channel_name] = channel_mask
     
-    # Compute statistics
-    stats = compute_mask_statistics(mask, mpp=None)
+    # Merge masks if multi-channel
+    if len(channel_masks) > 1:
+        merge_mode = merge_config.get('mode', 'union') if merge_config else 'union'
+        k_value = merge_config.get('k_value', 1) if merge_config else 1
+        mask = merge_channel_masks(channel_masks, merge_mode, k_value)
+        mask_merged = mask
+    else:
+        # Single channel or RGB mode
+        mask = list(channel_masks.values())[0]
+        mask_merged = None
     
-    # Create overlay visualization
+    # Apply post-processing if requested
+    binary_mask = mask
+    instance_mask = None
+    measurements = []
+    
+    if post_processing:
+        post_result = post_process_mask(
+            mask,
+            min_area_px=post_processing.get('min_area_px', 0),
+            fill_holes=post_processing.get('fill_holes', False),
+            morph_open_radius=post_processing.get('morph_open_radius', 0),
+            morph_close_radius=post_processing.get('morph_close_radius', 0),
+            watershed_split=post_processing.get('watershed_split', False),
+            min_distance=post_processing.get('min_distance', 10)
+        )
+        binary_mask = post_result['binary_mask']
+        instance_mask = post_result['instance_mask']
+        measurements = post_result['measurements']
+    
+    # Compute statistics on final mask
+    stats = compute_mask_statistics(binary_mask, mpp=None)
+    
+    # Create overlay visualization using final mask
     overlay = overlay_mask_on_image(
         image,
-        mask,
+        binary_mask,
         color=(255, 0, 0),
         alpha=0.5
     )
     
     # Create prompt box visualization if available
-    img_with_box = None
     if prompt_box is not None:
         img_with_box = image.copy()
         x1, y1, x2, y2 = prompt_box.astype(int)
@@ -420,7 +663,12 @@ def run_analysis_on_item(item: Dict[str, Any], prompt_mode: str = "auto_box",
     # Build and return result dict
     result = {
         'image': image,
-        'mask': mask,
+        'mask': mask,  # Original mask before post-processing
+        'channel_masks': channel_masks if len(channel_masks) > 1 else None,
+        'mask_merged': mask_merged,
+        'binary_mask': binary_mask,
+        'instance_mask': instance_mask,
+        'measurements': measurements,
         'statistics': stats,
         'overlay': overlay,
         'prompt_box': prompt_box,
@@ -566,7 +814,7 @@ def image_upload_page():
                     elif status == 'failed':
                         st.write("Failed")
                     elif status == 'skipped':
-                        st.write("⊘ Skipped")
+                        st.write("Skipped")
                 
                 with col5:
                     # Thumbnail preview
@@ -580,7 +828,7 @@ def image_upload_page():
                 st.session_state.images = []
                 st.rerun()
         
-        st.info("Go to **Analysis** tab to process your images")
+        st.info("Go to **MedSAM Analysis** tab to process your images")
         
     else:
         st.info("Please upload one or more images to get started")
@@ -590,10 +838,129 @@ def image_upload_page():
             st.session_state.images = []
 
 
+def channels_page():
+    """Channel inspection and configuration page"""
+    st.title("Channels")
+    
+    st.markdown("""
+    Preview individual color channels and configure which channels to use for MedSAM analysis.
+    """)
+    
+    # Check if we have images
+    if not st.session_state.images:
+        st.warning("Please upload images first in the Image Upload tab")
+        return
+    
+    st.markdown("---")
+    
+    # Display channel info for each image
+    for i, item in enumerate(st.session_state.images):
+        with st.expander(f"{i+1}. {item['name']}", expanded=(i == 0)):
+            # Load image if not already loaded
+            if 'np_rgb_uint8' not in item or item['np_rgb_uint8'] is None:
+                image = load_image_from_bytes(item['bytes'])
+                item['np_rgb_uint8'] = image
+            else:
+                image = item['np_rgb_uint8']
+            
+            # Initialize channel config if not present
+            if 'channel_config' not in item:
+                item['channel_config'] = {
+                    'mode': 'rgb',
+                    'channels': ['R', 'G', 'B']
+                }
+            
+            # Channel previews
+            st.write("**Channel Previews**")
+            col1, col2, col3, col4 = st.columns(4)
+            
+            # Extract channels
+            r_channel = image[:, :, 0]
+            g_channel = image[:, :, 1]
+            b_channel = image[:, :, 2]
+            
+            with col1:
+                st.image(image, caption="RGB Composite", use_container_width=True)
+            with col2:
+                st.image(r_channel, caption="R Channel", use_container_width=True, clamp=True)
+            with col3:
+                st.image(g_channel, caption="G Channel", use_container_width=True, clamp=True)
+            with col4:
+                st.image(b_channel, caption="B Channel", use_container_width=True, clamp=True)
+            
+            st.markdown("---")
+            
+            # Channel mode selection
+            st.write("**Channel Configuration**")
+            
+            mode = st.radio(
+                "Channel Mode",
+                options=['rgb', 'single', 'multi'],
+                format_func=lambda x: {
+                    'rgb': 'RGB Composite',
+                    'single': 'Single Channel',
+                    'multi': 'Multi-Channel'
+                }[x],
+                key=f"channel_mode_{i}",
+                index=['rgb', 'single', 'multi'].index(item['channel_config']['mode']),
+                horizontal=True
+            )
+            
+            item['channel_config']['mode'] = mode
+            
+            # Channel selection for single/multi mode
+            if mode in ['single', 'multi']:
+                if mode == 'single':
+                    st.write("Select a single channel:")
+                    selected = st.radio(
+                        "Channel",
+                        options=['R', 'G', 'B'],
+                        key=f"single_channel_{i}",
+                        index=['R', 'G', 'B'].index(item['channel_config']['channels'][0]) if item['channel_config']['channels'] else 0,
+                        horizontal=True
+                    )
+                    item['channel_config']['channels'] = [selected]
+                else:  # multi
+                    st.write("Select channels to process separately (will be merged):")
+                    channels = []
+                    col_r, col_g, col_b = st.columns(3)
+                    with col_r:
+                        if st.checkbox("R", value='R' in item['channel_config']['channels'], key=f"multi_r_{i}"):
+                            channels.append('R')
+                    with col_g:
+                        if st.checkbox("G", value='G' in item['channel_config']['channels'], key=f"multi_g_{i}"):
+                            channels.append('G')
+                    with col_b:
+                        if st.checkbox("B", value='B' in item['channel_config']['channels'], key=f"multi_b_{i}"):
+                            channels.append('B')
+                    
+                    if channels:
+                        item['channel_config']['channels'] = channels
+                    else:
+                        st.warning("Please select at least one channel")
+                        item['channel_config']['channels'] = ['R']
+            
+            # Show preview of what will be fed to MedSAM
+            st.markdown("---")
+            st.write("**MedSAM Input Preview**")
+            
+            channel_inputs = prepare_channel_input(image, item['channel_config'])
+            
+            if len(channel_inputs) == 1:
+                channel_img, channel_name = channel_inputs[0]
+                st.image(channel_img, caption=f"Input: {channel_name}", use_container_width=True)
+            else:
+                cols = st.columns(min(len(channel_inputs), 4))
+                for idx, (channel_img, channel_name) in enumerate(channel_inputs):
+                    with cols[idx % 4]:
+                        st.image(channel_img, caption=f"Input: {channel_name}", use_container_width=True)
+            
+            st.success(f"Configuration saved for {item['name']}")
+
 
 def analysis_page():
-    """Analysis interface with MedSAM segmentation - Multi-image queue support"""
-    st.title("AI-Powered Analysis")
+    """MedSAM Analysis interface with segmentation - Multi-image queue support"""
+    st.title("MedSAM Analysis")
     
     # Check if we're in local mode and have images in queue
     is_local_mode = st.session_state.local_mode
@@ -649,12 +1016,93 @@ def analysis_page():
                     help="Kernel size for morphological operations (used in auto_box mode)"
                 )
         
+        # Multi-channel merge settings
+        with st.expander("Multi-Channel Merge Settings"):
+            st.write("These settings apply when multi-channel mode is selected in the Channels page")
+            merge_mode = st.selectbox(
+                "Merge Mode",
+                options=['union', 'intersection', 'voting'],
+                index=0,
+                help="union: Any channel positive; intersection: All channels positive; voting: k-of-n channels"
+            )
+            
+            if merge_mode == 'voting':
+                k_value = st.slider(
+                    "K Value (k-of-n)",
+                    min_value=1,
+                    max_value=3,
+                    value=1,
+                    help="Require at least k channels to be positive"
+                )
+            else:
+                k_value = 1
+        
+        # Post-processing settings
+        with st.expander("Post-Processing Settings"):
+            col_p1, col_p2 = st.columns(2)
+            
+            with col_p1:
+                min_area_px = st.number_input(
+                    "Min Area (pixels)",
+                    min_value=0,
+                    max_value=10000,
+                    value=0,
+                    step=10,
+                    help="Remove objects smaller than this (in pixels)"
+                )
+                
+                fill_holes = st.checkbox(
+                    "Fill Holes",
+                    value=False,
+                    help="Fill holes in segmented objects"
+                )
+                
+                watershed_split = st.checkbox(
+                    "Watershed Split",
+                    value=False,
+                    help="Apply watershed for instance segmentation"
+                )
+            
+            with col_p2:
+                morph_open_radius = st.number_input(
+                    "Morphological Open Radius",
+                    min_value=0,
+                    max_value=20,
+                    value=0,
+                    step=1,
+                    help="Opening radius (0 = skip)"
+                )
+                
+                morph_close_radius = st.number_input(
+                    "Morphological Close Radius",
+                    min_value=0,
+                    max_value=20,
+                    value=0,
+                    step=1,
+                    help="Closing radius (0 = skip)"
+                )
+                
+                if watershed_split:
+                    min_distance = st.number_input(
+                        "Min Distance for Watershed",
+                        min_value=1,
+                        max_value=50,
+                        value=10,
+                        step=1,
+                        help="Minimum distance for watershed seed detection"
+                    )
+                else:
+                    min_distance = 10
+        
+        # TODO: Add refinement from prior JSON segmentation here
+        # This would allow users to load existing segmentation and refine it
+        
         st.markdown("---")
         
         # Control buttons
         st.subheader("Controls")
         
-        col_btn1, col_btn2, col_btn3, col_btn4 = st.columns(4)
+        col_btn1, col_btn2, col_btn3 = st.columns(3)
         
         with col_btn1:
             run_next = st.button("Run Next", type="primary", disabled=st.session_state.batch_running)
@@ -664,19 +1112,17 @@ def analysis_page():
         
         with col_btn3:
             if st.session_state.batch_running:
-                stop_batch = st.button("⏸️ Stop Batch", type="secondary")
+                stop_batch = st.button("Stop Batch", type="secondary")
             else:
                 stop_batch = False
         
-        with col_btn4:
-            clear_results = st.button("Clear Results", type="secondary", disabled=st.session_state.batch_running)
-        
         # Handle button actions
         if run_next:
-            # Find next ready or skipped image that is included
+            # Find next ready, skipped, or done image that is included
+            # This allows re-running with new parameters
             next_item = None
             for item in st.session_state.images:
-                if item['include'] and item['status'] in ['ready', 'skipped']:
+                if item['include'] and item['status'] in ['ready', 'skipped', 'done']:
                     next_item = item
                     break
             
@@ -687,6 +1133,10 @@ def analysis_page():
         if run_batch:
             st.session_state.batch_running = True
             st.session_state.batch_index = 0
+            # Mark all included items as ready to allow re-run
+            for item in st.session_state.images:
+                if item['include'] and item['status'] in ['done', 'failed']:
+                    item['status'] = 'ready'
             st.rerun()
         
         if stop_batch:
@@ -695,14 +1145,6 @@ def analysis_page():
             for item in st.session_state.images:
                 if item['status'] == 'processing':
                     item['status'] = 'skipped'
-            st.rerun()
-        
-        if clear_results:
-            for item in st.session_state.images:
-                if item['status'] in ['done', 'failed']:
-                    item['status'] = 'ready'
-                    item['result'] = None
-                    item['error'] = None
             st.rerun()
         
         # Batch processing logic
@@ -726,12 +1168,30 @@ def analysis_page():
                 # Process this item
                 st.info(f"Processing: {processing_item['name']}")
                 try:
+                    # Build post-processing config
+                    post_processing = {
+                        'min_area_px': min_area_px,
+                        'fill_holes': fill_holes,
+                        'morph_open_radius': morph_open_radius,
+                        'morph_close_radius': morph_close_radius,
+                        'watershed_split': watershed_split,
+                        'min_distance': min_distance
+                    }
+                    
+                    # Build merge config
+                    merge_config = {
+                        'mode': merge_mode,
+                        'k_value': k_value
+                    }
+                    
                     result = run_analysis_on_item(
                         processing_item,
                         prompt_mode=prompt_mode,
                         multimask_output=multimask_output,
                         min_area_ratio=min_area_ratio,
-                        morph_kernel_size=morph_kernel_size
+                        morph_kernel_size=morph_kernel_size,
+                        post_processing=post_processing,
+                        merge_config=merge_config
                     )
                     processing_item['result'] = result
                     processing_item['status'] = 'done'
@@ -768,12 +1228,30 @@ def analysis_page():
             if processing_item:
                 st.info(f"Processing: {processing_item['name']}")
                 try:
+                    # Build post-processing config
+                    post_processing = {
+                        'min_area_px': min_area_px,
+                        'fill_holes': fill_holes,
+                        'morph_open_radius': morph_open_radius,
+                        'morph_close_radius': morph_close_radius,
+                        'watershed_split': watershed_split,
+                        'min_distance': min_distance
+                    }
+                    
+                    # Build merge config
+                    merge_config = {
+                        'mode': merge_mode,
+                        'k_value': k_value
+                    }
+                    
                     result = run_analysis_on_item(
                         processing_item,
                         prompt_mode=prompt_mode,
                         multimask_output=multimask_output,
                         min_area_ratio=min_area_ratio,
-                        morph_kernel_size=morph_kernel_size
+                        morph_kernel_size=morph_kernel_size,
+                        post_processing=post_processing,
+                        merge_config=merge_config
                     )
                     processing_item['result'] = result
                     processing_item['status'] = 'done'
@@ -810,8 +1288,8 @@ def analysis_page():
                     # Visualizations
                     st.write("**Visualizations**")
                     
-                    # Create binary mask for visualization
-                    mask = result['mask']
+                    # Create binary mask for visualization - use post-processed mask if available
+                    mask = result.get('binary_mask', result['mask'])
                     if mask.dtype == np.bool_:
                         mask_bin = mask
                     else:
@@ -825,17 +1303,56 @@ def analysis_page():
                     
                     if result.get('img_with_box') is not None:
                         col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.image(result['image'], caption="Original", use_column_width="always")
+                        with col2:
+                            st.image(mask_vis, caption="Mask", clamp=True, use_column_width="always")
+                        with col3:
+                            st.image(result['overlay'], caption="Overlay", use_column_width="always")
                         with col4:
-                            st.image(result['img_with_box'], caption="Prompt Box", width=200)
+                            st.image(result['img_with_box'], caption="Prompt Box", use_column_width="always")
                     else:
                         col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.image(result['image'], caption="Original", use_column_width="always")
+                        with col2:
+                            st.image(mask_vis, caption="Mask", clamp=True, use_column_width="always")
+                        with col3:
+                            st.image(result['overlay'], caption="Overlay", use_column_width="always")
                     
-                    with col1:
-                        st.image(result['image'], caption="Original", width=200)
-                    with col2:
-                        st.image(mask_vis, caption="Mask", clamp=True, width=200)
-                    with col3:
-                        st.image(result['overlay'], caption="Overlay", width=200)
+                    # Show instance segmentation if available
+                    if result.get('instance_mask') is not None and result['instance_mask'] is not None:
+                        st.write("**Instance Segmentation**")
+                        st.write(f"Found {len(result.get('measurements', []))} objects")
+                        
+                        # Colorize instance mask for visualization
+                        instance_mask = result['instance_mask']
+                        if np.max(instance_mask) > 0:
+                            import matplotlib.pyplot as plt
+                            import matplotlib.colors as mcolors
+                            
+                            # Create a colormap
+                            n_instances = np.max(instance_mask)
+                            colors = plt.cm.tab20(np.linspace(0, 1, min(n_instances, 20)))
+                            
+                            # Create RGB visualization
+                            instance_vis = np.zeros((*instance_mask.shape, 3), dtype=np.uint8)
+                            for i in range(1, n_instances + 1):
+                                color_idx = (i - 1) % len(colors)
+                                mask_i = instance_mask == i
+                                instance_vis[mask_i] = (colors[color_idx][:3] * 255).astype(np.uint8)
+                            
+                            st.image(instance_vis, caption="Instance Segmentation", use_column_width="always")
+                    
+                    # Show channel masks if multi-channel
+                    if result.get('channel_masks'):
+                        st.write("**Channel Masks**")
+                        channel_masks = result['channel_masks']
+                        cols = st.columns(len(channel_masks))
+                        for idx, (channel_name, ch_mask) in enumerate(channel_masks.items()):
+                            with cols[idx]:
+                                ch_mask_vis = (ch_mask > 0).astype(np.uint8) * 255
+                                st.image(ch_mask_vis, caption=f"{channel_name} Channel", use_column_width="always")
                     
                 elif item['status'] == 'failed':
                     st.error(f"**Error:** {item['error']}")
@@ -851,7 +1368,7 @@ def analysis_page():
                     st.info("Ready for processing")
                 
                 elif item['status'] == 'skipped':
-                    st.warning("⊘ Skipped")
+                    st.warning("Skipped")
         
     else:
         # Original Halo mode logic (keep existing for backward compatibility)
@@ -1249,6 +1766,158 @@ def export_page():
         """)
 
 
+def tabulation_page():
+    """Tabulation page showing summary results across all images"""
+    st.title("Tabulation")
+    
+    st.markdown("""
+    Summary of MedSAM analysis results across all processed images.
+    """)
+    
+    # Check if we have any processed images
+    processed_images = [item for item in st.session_state.images if item.get('status') == 'done' and item.get('result')]
+    
+    if not processed_images:
+        st.warning("No processed images yet. Please run MedSAM Analysis first.")
+        return
+    
+    st.info(f"Showing results for {len(processed_images)} processed image(s)")
+    
+    st.markdown("---")
+    
+    # Build summary table
+    summary_data = []
+    for item in processed_images:
+        result = item['result']
+        stats = result['statistics']
+        
+        row = {
+            'Filename': item['name'],
+            'Positive Pixels': stats['num_positive_pixels'],
+            'Coverage (%)': f"{stats['coverage_percent']:.2f}",
+            'Total Pixels': stats['total_pixels']
+        }
+        
+        # Add instance info if available
+        if result.get('measurements'):
+            measurements = result['measurements']
+            row['Object Count'] = len(measurements)
+            if measurements:
+                areas = [m['area'] for m in measurements]
+                row['Mean Area (px)'] = f"{np.mean(areas):.1f}"
+                row['Total Area (px)'] = sum(areas)
+        else:
+            row['Object Count'] = '-'
+            row['Mean Area (px)'] = '-'
+            row['Total Area (px)'] = '-'
+        
+        summary_data.append(row)
+    
+    # Display as DataFrame
+    df = pd.DataFrame(summary_data)
+    st.dataframe(df, use_container_width=True)
+    
+    st.markdown("---")
+    
+    # Download options
+    st.subheader("Download Results")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Download CSV
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="Download Summary CSV",
+            data=csv,
+            file_name="medsam_summary.csv",
+            mime="text/csv",
+        )
+    
+    with col2:
+        # Download all masks as ZIP
+        if st.button("Prepare Mask Downloads"):
+            with st.spinner("Preparing downloads..."):
+                import zipfile
+                from io import BytesIO
+                
+                # Create ZIP file in memory
+                zip_buffer = BytesIO()
+                with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                    for item in processed_images:
+                        result = item['result']
+                        
+                        # Add binary mask as PNG
+                        mask = result.get('binary_mask', result['mask'])
+                        mask_img = Image.fromarray(mask)
+                        img_buffer = BytesIO()
+                        mask_img.save(img_buffer, format='PNG')
+                        zip_file.writestr(f"{item['name']}_mask.png", img_buffer.getvalue())
+                        
+                        # Add instance mask as TIFF if available
+                        if result.get('instance_mask') is not None and result['instance_mask'] is not None:
+                            instance_mask = result['instance_mask']
+                            instance_img = Image.fromarray(instance_mask.astype(np.int32))
+                            tiff_buffer = BytesIO()
+                            instance_img.save(tiff_buffer, format='TIFF')
+                            zip_file.writestr(f"{item['name']}_instances.tif", tiff_buffer.getvalue())
+                
+                zip_buffer.seek(0)
+                
+                st.download_button(
+                    label="Download All Masks (ZIP)",
+                    data=zip_buffer,
+                    file_name="medsam_masks.zip",
+                    mime="application/zip",
+                )
+    
+    st.markdown("---")
+    
+    # Individual image downloads
+    st.subheader("Individual Image Downloads")
+    
+    for i, item in enumerate(processed_images):
+        with st.expander(f"{i+1}. {item['name']}"):
+            result = item['result']
+            
+            col_a, col_b = st.columns(2)
+            
+            with col_a:
+                # Download mask PNG
+                mask = result.get('binary_mask', result['mask'])
+                mask_img = Image.fromarray(mask)
+                img_buffer = BytesIO()
+                mask_img.save(img_buffer, format='PNG')
+                img_buffer.seek(0)
+                
+                st.download_button(
+                    label="Download Mask PNG",
+                    data=img_buffer,
+                    file_name=f"{item['name']}_mask.png",
+                    mime="image/png",
+                    key=f"mask_png_{i}"
+                )
+            
+            with col_b:
+                # Download instance mask TIFF if available
+                if result.get('instance_mask') is not None and result['instance_mask'] is not None:
+                    instance_mask = result['instance_mask']
+                    instance_img = Image.fromarray(instance_mask.astype(np.int32))
+                    tiff_buffer = BytesIO()
+                    instance_img.save(tiff_buffer, format='TIFF')
+                    tiff_buffer.seek(0)
+                    
+                    st.download_button(
+                        label="Download Instance TIFF",
+                        data=tiff_buffer,
+                        file_name=f"{item['name']}_instances.tif",
+                        mime="image/tiff",
+                        key=f"instance_tiff_{i}"
+                    )
+                else:
+                    st.info("No instance segmentation available")
+
+
 def import_page():
     """Import annotations to Halo (optional feature)"""
     st.title("Import to Halo")
@@ -1290,14 +1959,17 @@ def main():
         if st.session_state.local_mode:
             nav_options = [
                 "Image Upload",
-                "Analysis",
+                "Channels",
+                "MedSAM Analysis",
+                "Tabulation",
                 "Export",
                 "Settings"
             ]
         else:
             nav_options = [
                 "Slide Selection",
-                "Analysis",
+                "MedSAM Analysis",
+                "Tabulation",
                 "Export",
                 "Import",
                 "Settings"
@@ -1322,8 +1994,12 @@ def main():
             image_upload_page()
         elif page == "Slide Selection":
             slide_selection_page()
-        elif page == "Analysis":
+        elif page == "Channels":
+            channels_page()
+        elif page == "MedSAM Analysis":
             analysis_page()
+        elif page == "Tabulation":
+            tabulation_page()
         elif page == "Export" or page == "Export":
             export_page()
         elif page == "Import":
@@ -1358,7 +2034,7 @@ def main():
                         for step_name, step_result in results.get("steps", {}).items():
                             if step_result.get("success"):
                                 if step_result.get("skipped"):
-                                    st.info(f"⊘ {step_name}: {step_result.get('reason', 'Skipped')}")
+                                    st.info(f"{step_name}: {step_result.get('reason', 'Skipped')}")
                                 else:
                                     st.success(f" {step_name}")
                             else:
