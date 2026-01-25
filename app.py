@@ -323,7 +323,7 @@ def slide_selection_page():
         st.metric("Height", f"{selected_slide['height']:,} px")
     with col3:
         mpp = selected_slide.get('mpp', 'N/A')
-        st.metric("MPP", f"{mpp}" if mpp != 'N/A'else "N/A")
+        st.metric("MPP", f"{mpp}" if mpp != 'N/A' else "N/A")
         st.metric("Format", selected_slide.get('format', 'Unknown'))
     
     # Save to session state
@@ -339,7 +339,7 @@ def run_analysis_on_item(item: Dict[str, Any], prompt_mode: str = "auto_box",
     """Run analysis on a single image item.
     
     Args:
-        item: Image item dict with 'bytes'field containing raw image data
+        item: Image item dict with 'bytes' field containing raw image data
         prompt_mode: Segmentation prompt mode (auto_box, full_box, point)
         multimask_output: Whether to generate multiple mask predictions
         min_area_ratio: Minimum area ratio for tissue detection (0-1)
@@ -580,7 +580,7 @@ def image_upload_page():
                 st.session_state.images = []
                 st.rerun()
         
-        st.info("Go to **Analysis**tab to process your images")
+        st.info("Go to **Analysis** tab to process your images")
         
     else:
         st.info("Please upload one or more images to get started")
