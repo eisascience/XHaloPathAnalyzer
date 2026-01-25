@@ -109,32 +109,32 @@ st.markdown("""
 # Initialize session state
 def init_session_state():
     """Initialize all session state variables"""
-    if 'authenticated'not in st.session_state:
+    if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
-    if 'local_mode'not in st.session_state:
+    if 'local_mode' not in st.session_state:
         st.session_state.local_mode = False
-    if 'api'not in st.session_state:
+    if 'api' not in st.session_state:
         st.session_state.api = None
-    if 'predictor'not in st.session_state:
+    if 'predictor' not in st.session_state:
         st.session_state.predictor = None
-    if 'selected_slide'not in st.session_state:
+    if 'selected_slide' not in st.session_state:
         st.session_state.selected_slide = None
-    if 'uploaded_images'not in st.session_state:
+    if 'uploaded_images' not in st.session_state:
         st.session_state.uploaded_images = []
-    if 'analysis_results'not in st.session_state:
+    if 'analysis_results' not in st.session_state:
         st.session_state.analysis_results = None
-    if 'current_image'not in st.session_state:
+    if 'current_image' not in st.session_state:
         st.session_state.current_image = None
-    if 'current_mask'not in st.session_state:
+    if 'current_mask' not in st.session_state:
         st.session_state.current_mask = None
-    if 'current_image_name'not in st.session_state:
+    if 'current_image_name' not in st.session_state:
         st.session_state.current_image_name = None
     # Multi-image queue support
-    if 'images'not in st.session_state:
+    if 'images' not in st.session_state:
         st.session_state.images = []  # List of dicts with id, name, bytes, np_rgb_uint8, status, error, result
-    if 'batch_running'not in st.session_state:
+    if 'batch_running' not in st.session_state:
         st.session_state.batch_running = False
-    if 'batch_index'not in st.session_state:
+    if 'batch_index' not in st.session_state:
         st.session_state.batch_index = 0
 
 init_session_state()
@@ -323,7 +323,7 @@ def slide_selection_page():
         st.metric("Height", f"{selected_slide['height']:,} px")
     with col3:
         mpp = selected_slide.get('mpp', 'N/A')
-        st.metric("MPP", f"{mpp}"if mpp != 'N/A'else "N/A")
+        st.metric("MPP", f"{mpp}" if mpp != 'N/A'else "N/A")
         st.metric("Format", selected_slide.get('format', 'Unknown'))
     
     # Save to session state
@@ -742,7 +742,7 @@ def analysis_page():
                     st.error(f"Failed: {processing_item['name']}: {str(e)}")
                 
                 # Check if there are more items to process
-                has_more = any(item['include'] and item['status'] == 'ready'for item in st.session_state.images)
+                has_more = any(item['include'] and item['status'] == 'ready' for item in st.session_state.images)
                 if has_more:
                     # Continue batch
                     st.rerun()
@@ -790,7 +790,7 @@ def analysis_page():
         
         for i, item in enumerate(st.session_state.images):
             with st.expander(f"{i+1}. {item['name']} - {item['status'].upper()}", expanded=(item['status'] in ['processing', 'done'])):
-                if item['status'] == 'done'and item['result']:
+                if item['status'] == 'done' and item['result']:
                     # Display results
                     result = item['result']
                     
@@ -804,7 +804,7 @@ def analysis_page():
                     with col2:
                         st.metric("Coverage", f"{stats['coverage_percent']:.2f}%")
                     with col3:
-                        if 'area_mm2'in stats:
+                        if 'area_mm2' in stats:
                             st.metric("Area", f"{stats['area_mm2']:.4f} mm²")
                     
                     # Visualizations
@@ -1049,10 +1049,10 @@ def analysis_page():
             with col2:
                 st.metric("Coverage", f"{stats['coverage_percent']:.2f}%")
             with col3:
-                if 'area_um2'in stats:
+                if 'area_um2' in stats:
                     st.metric("Area", f"{stats['area_um2']:.2f} µm²")
             with col4:
-                if 'area_mm2'in stats:
+                if 'area_mm2' in stats:
                     st.metric("Area", f"{stats['area_mm2']:.4f} mm²")
             
             # Visualizations
@@ -1217,7 +1217,7 @@ def export_page():
                 st.code(traceback.format_exc())
     
     # Display and download
-    if 'geojson'in st.session_state:
+    if 'geojson' in st.session_state:
         st.markdown("---")
         st.subheader("GeoJSON Preview")
         
@@ -1309,7 +1309,7 @@ def main():
         
         # Show current slide/image info
         if st.session_state.selected_slide:
-            st.sidebar.info(f"**Current {'Image'if st.session_state.local_mode else 'Slide'}:**\n{st.session_state.selected_slide['name']}")
+            st.sidebar.info(f"**Current {'Image' if st.session_state.local_mode else 'Slide'}:**\n{st.session_state.selected_slide['name']}")
         
         # Logout/Exit button
         if st.sidebar.button("Exit to Start"):
@@ -1324,7 +1324,7 @@ def main():
             slide_selection_page()
         elif page == "Analysis":
             analysis_page()
-        elif page == "Export"or page == "Export":
+        elif page == "Export" or page == "Export":
             export_page()
         elif page == "Import":
             import_page()
@@ -1334,7 +1334,7 @@ def main():
             st.write(f"**Device:** {Config.DEVICE}")
             st.write(f"**Model:** {Config.MODEL_TYPE}")
             st.write(f"**Checkpoint:** {Config.MEDSAM_CHECKPOINT}")
-            st.write(f"**Mode:** {'Local'if st.session_state.local_mode else 'Halo API'}")
+            st.write(f"**Mode:** {'Local' if st.session_state.local_mode else 'Halo API'}")
             
             # Halo Link Debug Section
             st.markdown("---")
@@ -1380,8 +1380,8 @@ def main():
                 "HALOLINK_BASE_URL": Config.HALOLINK_BASE_URL or "(not set)",
                 "HALOLINK_GRAPHQL_URL": Config.HALOLINK_GRAPHQL_URL or "(not set)",
                 "HALOLINK_GRAPHQL_PATH": Config.HALOLINK_GRAPHQL_PATH or "(not set)",
-                "HALOLINK_CLIENT_ID": "***"if Config.HALOLINK_CLIENT_ID else "(not set)",
-                "HALOLINK_CLIENT_SECRET": "***"if Config.HALOLINK_CLIENT_SECRET else "(not set)",
+                "HALOLINK_CLIENT_ID": "***" if Config.HALOLINK_CLIENT_ID else "(not set)",
+                "HALOLINK_CLIENT_SECRET": "***" if Config.HALOLINK_CLIENT_SECRET else "(not set)",
                 "HALOLINK_SCOPE": Config.HALOLINK_SCOPE or "(not set)",
             }
             
