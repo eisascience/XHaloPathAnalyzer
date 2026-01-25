@@ -43,6 +43,14 @@ class Config:
     HALO_API_ENDPOINT = os.getenv("HALO_API_ENDPOINT", "")
     HALO_API_TOKEN = os.getenv("HALO_API_TOKEN", "")
     
+    # Halo Link Integration Settings
+    HALOLINK_BASE_URL = os.getenv("HALOLINK_BASE_URL", "")
+    HALOLINK_GRAPHQL_URL = os.getenv("HALOLINK_GRAPHQL_URL", "")
+    HALOLINK_GRAPHQL_PATH = os.getenv("HALOLINK_GRAPHQL_PATH", "")
+    HALOLINK_CLIENT_ID = os.getenv("HALOLINK_CLIENT_ID", "")
+    HALOLINK_CLIENT_SECRET = os.getenv("HALOLINK_CLIENT_SECRET", "")
+    HALOLINK_SCOPE = os.getenv("HALOLINK_SCOPE", "")
+    
     # Local Mode (bypass Halo API requirement)
     LOCAL_MODE = os.getenv("LOCAL_MODE", "false").lower() == "true"
     

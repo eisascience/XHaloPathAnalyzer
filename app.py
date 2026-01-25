@@ -925,6 +925,59 @@ def main():
             st.write(f"**Model:** {Config.MODEL_TYPE}")
             st.write(f"**Checkpoint:** {Config.MEDSAM_CHECKPOINT}")
             st.write(f"**Mode:** {'Local' if st.session_state.local_mode else 'Halo API'}")
+            
+            # Halo Link Debug Section
+            st.markdown("---")
+            st.subheader("🔗 Halo Link Integration")
+            
+            if st.button("Run Halo Link Smoke Test"):
+                with st.spinner("Running Halo Link smoke test..."):
+                    try:
+                        from xhalo.halolink.smoketest import run_smoke_test
+                        
+                        # Run smoke test
+                        results = run_smoke_test(verbose=False)
+                        
+                        if results["success"]:
+                            st.success("✓ Halo Link smoke test passed!")
+                        else:
+                            st.error(f"✗ Halo Link smoke test failed: {results.get('error', 'Unknown error')}")
+                        
+                        # Display step-by-step results
+                        st.markdown("#### Test Results")
+                        for step_name, step_result in results.get("steps", {}).items():
+                            if step_result.get("success"):
+                                if step_result.get("skipped"):
+                                    st.info(f"⊘ {step_name}: {step_result.get('reason', 'Skipped')}")
+                                else:
+                                    st.success(f"✓ {step_name}")
+                            else:
+                                st.error(f"✗ {step_name}: {step_result.get('error', 'Failed')}")
+                        
+                        # Show detailed results in expander
+                        with st.expander("View Detailed Results"):
+                            st.json(results)
+                            
+                    except ImportError as e:
+                        st.error(f"Halo Link module not available: {e}")
+                    except Exception as e:
+                        st.error(f"Error running smoke test: {e}")
+                        logger.exception("Halo Link smoke test error")
+            
+            # Show current configuration
+            st.markdown("#### Current Configuration")
+            halolink_config = {
+                "HALOLINK_BASE_URL": Config.HALOLINK_BASE_URL or "(not set)",
+                "HALOLINK_GRAPHQL_URL": Config.HALOLINK_GRAPHQL_URL or "(not set)",
+                "HALOLINK_GRAPHQL_PATH": Config.HALOLINK_GRAPHQL_PATH or "(not set)",
+                "HALOLINK_CLIENT_ID": "***" if Config.HALOLINK_CLIENT_ID else "(not set)",
+                "HALOLINK_CLIENT_SECRET": "***" if Config.HALOLINK_CLIENT_SECRET else "(not set)",
+                "HALOLINK_SCOPE": Config.HALOLINK_SCOPE or "(not set)",
+            }
+            
+            for key, value in halolink_config.items():
+                st.text(f"{key}: {value}")
+
 
 
 if __name__ == "__main__":
