@@ -128,6 +128,15 @@ def _compute_tissue_bbox(image: np.ndarray,
         # Otsu threshold to separate tissue from background
         _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         
+        # In pathology images, tissue is typically darker than background
+        # Otsu makes darker regions black (0) and lighter regions white (255)
+        # For tissue detection, we want tissue to be white (foreground)
+        # If less than 50% is white after Otsu, tissue was likely marked as black
+        white_ratio = np.sum(binary == 255) / (h * w)
+        if white_ratio < 0.5:
+            # Invert: tissue (currently black) becomes white
+            binary = 255 - binary
+        
         # Morphological operations to clean up
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, 
                                           (morph_kernel_size, morph_kernel_size))
