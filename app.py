@@ -130,6 +130,13 @@ def init_session_state():
         st.session_state.current_mask = None
     if 'current_image_name' not in st.session_state:
         st.session_state.current_image_name = None
+    # Multi-image queue support
+    if 'images' not in st.session_state:
+        st.session_state.images = []  # List of dicts with id, name, bytes, np_rgb_uint8, status, error, result
+    if 'batch_running' not in st.session_state:
+        st.session_state.batch_running = False
+    if 'batch_index' not in st.session_state:
+        st.session_state.batch_index = 0
 
 init_session_state()
 
@@ -152,7 +159,7 @@ def authentication_page():
     if mode == "📁 Local Image Upload Mode":
         st.info("💡 **Local Mode**: Upload images (JPG, PNG, TIFF) directly for analysis without Halo API connection")
         
-        if st.button("✅ Start Local Mode", type="primary", use_container_width=True):
+        if st.button("✅ Start Local Mode", type="primary", ):
             st.session_state.authenticated = True
             st.session_state.local_mode = True
             st.success("✅ Local mode activated!")
@@ -194,7 +201,7 @@ def authentication_page():
                 help="API authentication token from Halo settings"
             )
             
-            if st.button("🔌 Connect", type="primary", use_container_width=True):
+            if st.button("🔌 Connect", type="primary", ):
                 if not endpoint or not token:
                     st.error("❌ Please provide both endpoint and token")
                 else:
@@ -321,9 +328,94 @@ def slide_selection_page():
         st.metric("Format", selected_slide.get('format', 'Unknown'))
     
     # Save to session state
-    if st.button("✅ Select This Slide", type="primary", use_container_width=True):
+    if st.button("✅ Select This Slide", type="primary", ):
         st.session_state.selected_slide = selected_slide
         st.success(f"✅ Selected: {selected_slide['name']}")
+
+
+def run_analysis_on_item(item: Dict[str, Any], prompt_mode: str = "auto_box", 
+                         multimask_output: bool = False, 
+                         min_area_ratio: float = 0.01,
+                         morph_kernel_size: int = 5) -> Dict[str, Any]:
+    """
+    Run analysis on a single image item.
+    
+    Args:
+        item: Image item dict with 'bytes' field
+        prompt_mode: Segmentation prompt mode (auto_box, full_box, point)
+        multimask_output: Whether to generate multiple mask predictions
+        min_area_ratio: Minimum area ratio for tissue detection
+        morph_kernel_size: Kernel size for morphological operations
+        
+    Returns:
+        Dict with analysis results (image, mask, statistics, visualizations, etc.)
+    """
+    # Decode bytes to RGB uint8 numpy
+    image = load_image_from_bytes(item['bytes'])
+    item['np_rgb_uint8'] = image  # Store for future use
+    
+    # Initialize predictor if needed
+    if st.session_state.predictor is None:
+        st.session_state.predictor = UtilsMedSAMPredictor(
+            Config.MEDSAM_CHECKPOINT,
+            model_type=Config.MODEL_TYPE,
+            device=Config.DEVICE
+        )
+    
+    # Compute prompt box for visualization
+    prompt_box = None
+    if prompt_mode == "auto_box":
+        image_rgb = _ensure_rgb_uint8(image)
+        prompt_box = _compute_tissue_bbox(image_rgb, min_area_ratio, morph_kernel_size)
+    elif prompt_mode == "full_box":
+        h, w = image.shape[:2]
+        prompt_box = np.array([0, 0, w - 1, h - 1])
+    
+    # Run segmentation
+    mask = st.session_state.predictor.predict(
+        image,
+        prompt_mode=prompt_mode,
+        multimask_output=multimask_output,
+        min_area_ratio=min_area_ratio,
+        morph_kernel_size=morph_kernel_size
+    )
+    
+    # Compute statistics
+    stats = compute_mask_statistics(mask, mpp=None)
+    
+    # Create overlay visualization
+    overlay = overlay_mask_on_image(
+        image,
+        mask,
+        color=(255, 0, 0),
+        alpha=0.5
+    )
+    
+    # Create prompt box visualization if available
+    img_with_box = None
+    if prompt_box is not None:
+        img_with_box = image.copy()
+        x1, y1, x2, y2 = prompt_box.astype(int)
+        img_with_box = cv2.rectangle(img_with_box, (x1, y1), (x2, y2), 
+                                    PROMPT_BOX_COLOR, PROMPT_BOX_THICKNESS)
+        label_y = max(y1 - PROMPT_BOX_LABEL_Y_OFFSET, PROMPT_BOX_LABEL_MIN_Y)
+        cv2.putText(img_with_box, f"Prompt: {prompt_mode}", 
+                   (x1, label_y), PROMPT_BOX_LABEL_FONT, PROMPT_BOX_LABEL_SCALE,
+                   PROMPT_BOX_COLOR, PROMPT_BOX_LABEL_THICKNESS)
+    
+    # Build and return result dict
+    result = {
+        'image': image,
+        'mask': mask,
+        'statistics': stats,
+        'overlay': overlay,
+        'prompt_box': prompt_box,
+        'img_with_box': img_with_box,
+        'prompt_mode': prompt_mode,
+        'timestamp': datetime.now().isoformat()
+    }
+    
+    return result
 
 
 def image_upload_page():
@@ -350,106 +442,681 @@ def image_upload_page():
     if uploaded_files:
         st.success(f"✅ {len(uploaded_files)} file(s) uploaded")
         
-        # Display uploaded files
-        st.subheader("📊 Uploaded Files")
-        
-        file_data = []
+        # Automatically populate session_state.images from uploaded files
+        # Create unique IDs based on filename and file size
+        uploaded_ids = set()
         for uploaded_file in uploaded_files:
-            file_size_mb = uploaded_file.size / (1024 * 1024)
-            file_data.append({
-                "Filename": uploaded_file.name,
-                "Size (MB)": f"{file_size_mb:.2f}",
-                "Type": uploaded_file.type
-            })
-        
-        df = pd.DataFrame(file_data)
-        st.dataframe(df, use_container_width=True)
-        
-        st.markdown("---")
-        
-        # Select image to analyze
-        st.subheader("🎯 Select Image for Analysis")
-        
-        selected_filename = st.selectbox(
-            "Choose an image to analyze",
-            [f.name for f in uploaded_files],
-            help="Select which image to process"
-        )
-        
-        # Find selected file
-        selected_file = None
-        for f in uploaded_files:
-            if f.name == selected_filename:
-                selected_file = f
-                break
-        
-        if selected_file:
-            # Display image preview
-            col1, col2 = st.columns([2, 1])
+            file_id = f"{uploaded_file.name}_{uploaded_file.size}"
+            uploaded_ids.add(file_id)
             
-            with col1:
+            # Check if this image is already in the list
+            existing = False
+            for img in st.session_state.images:
+                if img['id'] == file_id:
+                    existing = True
+                    break
+            
+            if not existing:
+                # Read bytes
+                image_bytes = uploaded_file.read()
+                uploaded_file.seek(0)  # Reset file pointer
+                
+                # Add to images list
+                st.session_state.images.append({
+                    'id': file_id,
+                    'name': uploaded_file.name,
+                    'bytes': image_bytes,
+                    'np_rgb_uint8': None,
+                    'status': 'ready',  # ready, processing, done, failed, skipped
+                    'error': None,
+                    'result': None,
+                    'include': True  # Whether to include in batch processing
+                })
+        
+        # Remove images that are no longer in uploaded_files
+        st.session_state.images = [
+            img for img in st.session_state.images 
+            if img['id'] in uploaded_ids
+        ]
+        
+        # Display uploaded images with status
+        st.subheader("📊 Uploaded Images")
+        
+        if st.session_state.images:
+            # Create table data
+            table_data = []
+            for i, img in enumerate(st.session_state.images):
+                # Preview thumbnail
                 try:
-                    # Load and display preview
-                    image_bytes = selected_file.read()
-                    selected_file.seek(0)  # Reset file pointer
-                    image = load_image_from_bytes(image_bytes)
-                    
-                    st.image(image, caption=selected_file.name, use_container_width=True)
-                    
-                except Exception as e:
-                    st.error(f"❌ Error loading image: {str(e)}")
-                    return
-            
-            with col2:
-                st.metric("Filename", selected_file.name)
-                st.metric("Dimensions", f"{image.shape[1]} × {image.shape[0]} px")
-                st.metric("Channels", image.shape[2] if len(image.shape) > 2 else 1)
-            
-            # Load image button
-            if st.button("✅ Load This Image for Analysis", type="primary", use_container_width=True):
+                    if img['np_rgb_uint8'] is None and img['status'] != 'processing':
+                        preview_img = load_image_from_bytes(img['bytes'])
+                        # Create small thumbnail for preview (100px height)
+                        h, w = preview_img.shape[:2]
+                        thumb_h = 100
+                        thumb_w = int(w * thumb_h / h)
+                        thumbnail = cv2.resize(preview_img, (thumb_w, thumb_h))
+                    else:
+                        thumbnail = img.get('np_rgb_uint8')
+                        if thumbnail is not None:
+                            h, w = thumbnail.shape[:2]
+                            thumb_h = 100
+                            thumb_w = int(w * thumb_h / h)
+                            thumbnail = cv2.resize(thumbnail, (thumb_w, thumb_h))
+                except:
+                    thumbnail = None
+                
+                # Get dimensions
                 try:
-                    # Load image into session state
-                    image_bytes = selected_file.read()
-                    selected_file.seek(0)
-                    image = load_image_from_bytes(image_bytes)
-                    
-                    # Store in session state
-                    st.session_state.current_image = image
-                    st.session_state.current_image_name = selected_file.name
-                    st.session_state.uploaded_images = uploaded_files
-                    
-                    # Create pseudo-slide object for compatibility
-                    st.session_state.selected_slide = {
-                        'name': selected_file.name,
-                        'id': f"local_{selected_file.name}",
-                        'width': image.shape[1],
-                        'height': image.shape[0],
-                        'mpp': None,
-                        'format': selected_file.type
-                    }
-                    
-                    st.success(f"✅ Image loaded: {selected_file.name}")
-                    st.info("👉 Go to **Analysis** page to run segmentation")
-                    
-                except Exception as e:
-                    st.error(f"❌ Error loading image: {str(e)}")
+                    if img['np_rgb_uint8'] is not None:
+                        dims = f"{img['np_rgb_uint8'].shape[1]} × {img['np_rgb_uint8'].shape[0]}"
+                    else:
+                        temp_img = load_image_from_bytes(img['bytes'])
+                        dims = f"{temp_img.shape[1]} × {temp_img.shape[0]}"
+                except:
+                    dims = "Unknown"
+                
+                table_data.append({
+                    'index': i,
+                    'name': img['name'],
+                    'dimensions': dims,
+                    'status': img['status'],
+                    'thumbnail': thumbnail
+                })
+            
+            # Display table
+            for row in table_data:
+                col1, col2, col3, col4, col5 = st.columns([1, 3, 2, 2, 1])
+                
+                with col1:
+                    # Include checkbox
+                    include = st.checkbox(
+                        "Include",
+                        value=st.session_state.images[row['index']]['include'],
+                        key=f"include_{row['index']}",
+                        label_visibility="collapsed"
+                    )
+                    st.session_state.images[row['index']]['include'] = include
+                
+                with col2:
+                    st.write(f"**{row['name']}**")
+                
+                with col3:
+                    st.write(row['dimensions'])
+                
+                with col4:
+                    # Status badge
+                    status = row['status']
+                    if status == 'ready':
+                        st.write("⏳ Ready")
+                    elif status == 'processing':
+                        st.write("⚙️ Processing...")
+                    elif status == 'done':
+                        st.write("✅ Done")
+                    elif status == 'failed':
+                        st.write("❌ Failed")
+                    elif status == 'skipped':
+                        st.write("⊘ Skipped")
+                
+                with col5:
+                    # Thumbnail preview
+                    if row['thumbnail'] is not None:
+                        st.image(row['thumbnail'], width=50)
+            
+            st.markdown("---")
+            
+            # Clear uploads button
+            if st.button("🗑️ Clear Uploads", type="secondary"):
+                st.session_state.images = []
+                st.rerun()
+        
+        st.info("👉 Go to **Analysis** tab to process your images")
+        
     else:
         st.info("💡 Please upload one or more images to get started")
+        
+        # If there are no uploaded files but images exist, clear them
+        if st.session_state.images:
+            st.session_state.images = []
+
 
 
 def analysis_page():
-    """Analysis interface with MedSAM segmentation"""
+    """Analysis interface with MedSAM segmentation - Multi-image queue support"""
     st.title("🤖 AI-Powered Analysis")
     
-    if st.session_state.selected_slide is None:
-        if st.session_state.local_mode:
-            st.warning("⚠️ Please upload and select an image first")
-        else:
-            st.warning("⚠️ Please select a slide first")
-        return
+    # Check if we're in local mode and have images in queue
+    is_local_mode = st.session_state.local_mode
     
-    slide = st.session_state.selected_slide
-    st.info(f"📊 Analyzing: **{slide['name']}**")
+    if is_local_mode:
+        # Local mode with multi-image queue
+        if not st.session_state.images:
+            st.warning("⚠️ Please upload images first in the Image Upload tab")
+            return
+        
+        st.info(f"📊 Image Queue: {len(st.session_state.images)} image(s)")
+        
+        # Analysis settings (common for all images)
+        st.subheader("⚙️ Analysis Settings")
+        
+        col_set1, col_set2 = st.columns(2)
+        
+        with col_set1:
+            prompt_mode = st.selectbox(
+                "Prompt Mode",
+                options=["auto_box", "full_box", "point"],
+                index=0,
+                help="auto_box: Auto-detect tissue region; full_box: Use entire image; point: Use center point"
+            )
+        
+        with col_set2:
+            multimask_output = st.checkbox(
+                "Multi-mask Output",
+                value=False,
+                help="Generate multiple mask predictions and select the best one"
+            )
+        
+        # Advanced settings in expander
+        with st.expander("Advanced Segmentation Settings"):
+            col_a, col_b = st.columns(2)
+            with col_a:
+                min_area_ratio = st.slider(
+                    "Min Area Ratio",
+                    min_value=0.001,
+                    max_value=0.1,
+                    value=0.01,
+                    step=0.001,
+                    format="%.3f",
+                    help="Minimum area ratio for tissue detection (used in auto_box mode)"
+                )
+            with col_b:
+                morph_kernel_size = st.slider(
+                    "Morph Kernel Size",
+                    min_value=3,
+                    max_value=15,
+                    value=5,
+                    step=2,
+                    help="Kernel size for morphological operations (used in auto_box mode)"
+                )
+        
+        st.markdown("---")
+        
+        # Control buttons
+        st.subheader("🎮 Controls")
+        
+        col_btn1, col_btn2, col_btn3, col_btn4 = st.columns(4)
+        
+        with col_btn1:
+            run_next = st.button("▶️ Run Next", type="primary", disabled=st.session_state.batch_running)
+        
+        with col_btn2:
+            run_batch = st.button("⏩ Run Batch", type="primary", disabled=st.session_state.batch_running)
+        
+        with col_btn3:
+            if st.session_state.batch_running:
+                stop_batch = st.button("⏸️ Stop Batch", type="secondary")
+            else:
+                stop_batch = False
+        
+        with col_btn4:
+            clear_results = st.button("🗑️ Clear Results", type="secondary", disabled=st.session_state.batch_running)
+        
+        # Handle button actions
+        if run_next:
+            # Find next ready or skipped image that is included
+            next_item = None
+            for item in st.session_state.images:
+                if item['include'] and item['status'] in ['ready', 'skipped']:
+                    next_item = item
+                    break
+            
+            if next_item:
+                next_item['status'] = 'processing'
+                st.rerun()
+        
+        if run_batch:
+            st.session_state.batch_running = True
+            st.session_state.batch_index = 0
+            st.rerun()
+        
+        if stop_batch:
+            st.session_state.batch_running = False
+            # Mark any processing items as skipped
+            for item in st.session_state.images:
+                if item['status'] == 'processing':
+                    item['status'] = 'skipped'
+            st.rerun()
+        
+        if clear_results:
+            for item in st.session_state.images:
+                if item['status'] in ['done', 'failed']:
+                    item['status'] = 'ready'
+                    item['result'] = None
+                    item['error'] = None
+            st.rerun()
+        
+        # Batch processing logic
+        if st.session_state.batch_running:
+            # Find the next image to process
+            processing_item = None
+            for item in st.session_state.images:
+                if item['include'] and item['status'] == 'processing':
+                    processing_item = item
+                    break
+            
+            if processing_item is None:
+                # Find next ready item
+                for item in st.session_state.images:
+                    if item['include'] and item['status'] == 'ready':
+                        item['status'] = 'processing'
+                        processing_item = item
+                        break
+            
+            if processing_item:
+                # Process this item
+                st.info(f"⏳ Processing: {processing_item['name']}")
+                try:
+                    result = run_analysis_on_item(
+                        processing_item,
+                        prompt_mode=prompt_mode,
+                        multimask_output=multimask_output,
+                        min_area_ratio=min_area_ratio,
+                        morph_kernel_size=morph_kernel_size
+                    )
+                    processing_item['result'] = result
+                    processing_item['status'] = 'done'
+                    st.success(f"✅ Completed: {processing_item['name']}")
+                except Exception as e:
+                    processing_item['status'] = 'failed'
+                    processing_item['error'] = str(e)
+                    st.error(f"❌ Failed: {processing_item['name']}: {str(e)}")
+                
+                # Check if there are more items to process
+                has_more = any(item['include'] and item['status'] == 'ready' for item in st.session_state.images)
+                if has_more:
+                    # Continue batch
+                    st.rerun()
+                else:
+                    # Batch complete
+                    st.session_state.batch_running = False
+                    st.success("🎉 Batch processing complete!")
+                    st.rerun()
+            else:
+                # No more items to process
+                st.session_state.batch_running = False
+                st.success("🎉 Batch processing complete!")
+                st.rerun()
+        
+        # Single item processing (Run Next button)
+        if not st.session_state.batch_running:
+            processing_item = None
+            for item in st.session_state.images:
+                if item['status'] == 'processing':
+                    processing_item = item
+                    break
+            
+            if processing_item:
+                st.info(f"⏳ Processing: {processing_item['name']}")
+                try:
+                    result = run_analysis_on_item(
+                        processing_item,
+                        prompt_mode=prompt_mode,
+                        multimask_output=multimask_output,
+                        min_area_ratio=min_area_ratio,
+                        morph_kernel_size=morph_kernel_size
+                    )
+                    processing_item['result'] = result
+                    processing_item['status'] = 'done'
+                    st.success(f"✅ Completed: {processing_item['name']}")
+                except Exception as e:
+                    processing_item['status'] = 'failed'
+                    processing_item['error'] = str(e)
+                    st.error(f"❌ Failed: {processing_item['name']}: {str(e)}")
+        
+        st.markdown("---")
+        
+        # Display queue status
+        st.subheader("📋 Queue Status")
+        
+        for i, item in enumerate(st.session_state.images):
+            with st.expander(f"{i+1}. {item['name']} - {item['status'].upper()}", expanded=(item['status'] in ['processing', 'done'])):
+                if item['status'] == 'done' and item['result']:
+                    # Display results
+                    result = item['result']
+                    
+                    # Statistics
+                    st.write("**Statistics**")
+                    col1, col2, col3 = st.columns(3)
+                    stats = result['statistics']
+                    
+                    with col1:
+                        st.metric("Positive Pixels", f"{stats['num_positive_pixels']:,}")
+                    with col2:
+                        st.metric("Coverage", f"{stats['coverage_percent']:.2f}%")
+                    with col3:
+                        if 'area_mm2' in stats:
+                            st.metric("Area", f"{stats['area_mm2']:.4f} mm²")
+                    
+                    # Visualizations
+                    st.write("**Visualizations**")
+                    
+                    # Create binary mask for visualization
+                    mask = result['mask']
+                    if mask.dtype == np.bool_:
+                        mask_bin = mask
+                    else:
+                        unique_vals = np.unique(mask)
+                        if len(unique_vals) <= 2 and set(unique_vals).issubset({0, 1, True, False}):
+                            mask_bin = mask.astype(bool)
+                        else:
+                            mask_bin = mask > 0.5
+                    
+                    mask_vis = (mask_bin.astype(np.uint8)) * 255
+                    
+                    if result.get('img_with_box') is not None:
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col4:
+                            st.image(result['img_with_box'], caption="Prompt Box", width=200)
+                    else:
+                        col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.image(result['image'], caption="Original", width=200)
+                    with col2:
+                        st.image(mask_vis, caption="Mask", clamp=True, width=200)
+                    with col3:
+                        st.image(result['overlay'], caption="Overlay", width=200)
+                    
+                elif item['status'] == 'failed':
+                    st.error(f"**Error:** {item['error']}")
+                    if st.button(f"Retry {item['name']}", key=f"retry_{i}"):
+                        item['status'] = 'ready'
+                        item['error'] = None
+                        st.rerun()
+                
+                elif item['status'] == 'processing':
+                    st.info("⏳ Processing in progress...")
+                
+                elif item['status'] == 'ready':
+                    st.info("⏳ Ready for processing")
+                
+                elif item['status'] == 'skipped':
+                    st.warning("⊘ Skipped")
+        
+    else:
+        # Original Halo mode logic (keep existing for backward compatibility)
+        if st.session_state.selected_slide is None:
+            st.warning("⚠️ Please select a slide first")
+            return
+        
+        slide = st.session_state.selected_slide
+        st.info(f"📊 Analyzing: **{slide['name']}**")
+        
+        # Check if in local mode or Halo mode
+        is_local_mode = st.session_state.local_mode or slide['id'].startswith('local_')
+        
+        # ROI selection (only for Halo mode or if image is already loaded)
+        if not is_local_mode or st.session_state.current_image is None:
+            st.subheader("📍 Region of Interest (ROI)")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                x = st.number_input("X coordinate (pixels)", min_value=0, max_value=slide['width'], value=0, step=100)
+                width = st.number_input("Width (pixels)", min_value=1, max_value=slide['width'], value=1024, step=100)
+            
+            with col2:
+                y = st.number_input("Y coordinate (pixels)", min_value=0, max_value=slide['height'], value=0, step=100)
+                height = st.number_input("Height (pixels)", min_value=1, max_value=slide['height'], value=1024, step=100)
+            
+            # Validate ROI
+            if x + width > slide['width']:
+                st.error(f"❌ ROI extends beyond slide width ({slide['width']} px)")
+                return
+            if y + height > slide['height']:
+                st.error(f"❌ ROI extends beyond slide height ({slide['height']} px)")
+                return
+        else:
+            # For local mode with pre-loaded image, use full image
+            x, y = 0, 0
+            width, height = slide['width'], slide['height']
+            st.info(f"📐 Analyzing full image: {width} × {height} pixels")
+        
+        st.markdown("---")
+        
+        # Analysis settings
+        st.subheader("⚙️ Analysis Settings")
+        
+        # Segmentation prompt settings
+        st.write("**Segmentation Prompt Mode**")
+        prompt_mode = st.selectbox(
+            "Prompt Mode",
+            options=["auto_box", "full_box", "point"],
+            index=0,
+            help="auto_box: Auto-detect tissue region; full_box: Use entire image; point: Use center point"
+        )
+        
+        # Advanced settings in expander
+        with st.expander("Advanced Segmentation Settings"):
+            col_a, col_b = st.columns(2)
+            with col_a:
+                min_area_ratio = st.slider(
+                    "Min Area Ratio",
+                    min_value=0.001,
+                    max_value=0.1,
+                    value=0.01,
+                    step=0.001,
+                    format="%.3f",
+                    help="Minimum area ratio for tissue detection (used in auto_box mode)"
+                )
+                morph_kernel_size = st.slider(
+                    "Morph Kernel Size",
+                    min_value=3,
+                    max_value=15,
+                    value=5,
+                    step=2,
+                    help="Kernel size for morphological operations (used in auto_box mode)"
+                )
+            with col_b:
+                multimask_output = st.checkbox(
+                    "Multi-mask Output",
+                    value=False,
+                    help="Generate multiple mask predictions and select the best one"
+                )
+        
+        use_prompts = st.checkbox("Use point/box prompts", value=False, 
+                                 help="Enable interactive prompts for segmentation")
+        
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            if st.button("🚀 Run Analysis", type="primary"):
+                with st.spinner("Processing..."):
+                    try:
+                        # Get image based on mode
+                        if is_local_mode and st.session_state.current_image is not None:
+                            # Use pre-loaded image from local upload
+                            st.info("⏳ Using uploaded image...")
+                            image = st.session_state.current_image
+                            
+                            # If ROI is specified and not full image, crop it
+                            if x > 0 or y > 0 or width < slide['width'] or height < slide['height']:
+                                image = image[y:y+height, x:x+width]
+                        else:
+                            # Download region from Halo API
+                            st.info("⏳ Downloading region from Halo... This may take a moment for large regions.")
+                            region_data = st.session_state.api.download_region(
+                                slide['id'], x, y, width, height
+                            )
+                            
+                            if not region_data:
+                                st.error("❌ Failed to download region - no data received")
+                                return
+                            
+                            # Load image
+                            st.info("⏳ Loading image...")
+                            image = load_image_from_bytes(region_data)
+                        
+                        st.session_state.current_image = image
+                        
+                        # Initialize predictor if needed
+                        if st.session_state.predictor is None:
+                            st.info("⏳ Loading MedSAM model...")
+                            st.session_state.predictor = UtilsMedSAMPredictor(
+                                Config.MEDSAM_CHECKPOINT,
+                                model_type=Config.MODEL_TYPE,
+                                device=Config.DEVICE
+                            )
+                        
+                        # Run inference directly on original image (no preprocessing)
+                        st.info(f"⏳ Running MedSAM segmentation with {prompt_mode} prompt...")
+                        
+                        # Compute prompt box for visualization
+                        prompt_box = None
+                        if prompt_mode == "auto_box":
+                            image_rgb = _ensure_rgb_uint8(image)
+                            prompt_box = _compute_tissue_bbox(image_rgb, min_area_ratio, morph_kernel_size)
+                            st.info(f"📦 Detected tissue box: {prompt_box}")
+                        elif prompt_mode == "full_box":
+                            h, w = image.shape[:2]
+                            prompt_box = np.array([0, 0, w - 1, h - 1])
+                            st.info(f"📦 Using full image box: {prompt_box}")
+                        
+                        mask = st.session_state.predictor.predict(
+                            image,
+                            prompt_mode=prompt_mode,
+                            multimask_output=multimask_output,
+                            min_area_ratio=min_area_ratio,
+                            morph_kernel_size=morph_kernel_size
+                        )
+                        
+                        # Store mask directly (already at original image size)
+                        st.session_state.current_mask = mask
+                        
+                        # Compute statistics
+                        mpp = slide.get('mpp')
+                        stats = compute_mask_statistics(mask, mpp)
+                        
+                        # Store results
+                        st.session_state.analysis_results = {
+                            'image': image,
+                            'mask': mask,
+                            'roi': (x, y, width, height),
+                            'statistics': stats,
+                            'slide_id': slide['id'],
+                            'slide_name': slide['name'],
+                            'timestamp': datetime.now().isoformat(),
+                            'prompt_box': prompt_box,
+                            'prompt_mode': prompt_mode
+                        }
+                        
+                        st.success("✅ Analysis complete!")
+                        
+                    except Exception as e:
+                        st.error(f"❌ Analysis failed: {str(e)}")
+                        st.code(traceback.format_exc())
+        
+        with col2:
+            if st.button("🔄 Clear Results"):
+                st.session_state.analysis_results = None
+                st.session_state.current_image = None
+                st.session_state.current_mask = None
+                st.success("✅ Cleared")
+        
+        # Display results
+        if st.session_state.analysis_results is not None:
+            st.markdown("---")
+            st.subheader("📊 Results")
+            
+            results = st.session_state.analysis_results
+            
+            # Statistics
+            col1, col2, col3, col4 = st.columns(4)
+            stats = results['statistics']
+            
+            with col1:
+                st.metric("Positive Pixels", f"{stats['num_positive_pixels']:,}")
+            with col2:
+                st.metric("Coverage", f"{stats['coverage_percent']:.2f}%")
+            with col3:
+                if 'area_um2' in stats:
+                    st.metric("Area", f"{stats['area_um2']:.2f} µm²")
+            with col4:
+                if 'area_mm2' in stats:
+                    st.metric("Area", f"{stats['area_mm2']:.4f} mm²")
+            
+            # Visualizations
+            st.markdown("### 🖼️ Visualization")
+            
+            # Debug information for mask
+            mask = results['mask']
+            st.write("**Debug Info:**")
+            st.write(f"Prompt mode: {results.get('prompt_mode', 'unknown')}")
+            if results.get('prompt_box') is not None:
+                prompt_box = results['prompt_box']
+                st.write(f"Prompt box: [{prompt_box[0]}, {prompt_box[1]}, {prompt_box[2]}, {prompt_box[3]}]")
+                box_area = (prompt_box[2] - prompt_box[0]) * (prompt_box[3] - prompt_box[1])
+                img_area = mask.shape[0] * mask.shape[1]
+                st.write(f"Prompt box area: {box_area:,} pixels ({100*box_area/img_area:.1f}% of image)")
+            st.write(f"Mask dtype: {mask.dtype}, shape: {mask.shape}")
+            st.write(f"Mask min/max: {float(np.min(mask))}, {float(np.max(mask))}")
+            
+            # Create binary mask - handle both boolean and numeric masks
+            # For boolean masks, use directly; for numeric, threshold at 0.5
+            if mask.dtype == np.bool_:
+                mask_bin = mask
+            else:
+                # Check if already binary (0/1) or needs thresholding
+                unique_vals = np.unique(mask)
+                if len(unique_vals) <= 2 and set(unique_vals).issubset({0, 1, True, False}):
+                    mask_bin = mask.astype(bool)  # Already binary
+                else:
+                    mask_bin = mask > 0.5  # Threshold probabilistic output
+            
+            st.write(f"Binary mask unique values: {np.unique(mask_bin)}")
+            st.write(f"Binary mask sum (positive pixels): {int(mask_bin.sum())}")
+            
+            # Create prompt box overlay for visualization if available
+            if results.get('prompt_box') is not None:
+                prompt_box = results['prompt_box']
+                img_with_box = results['image'].copy()
+                # Draw rectangle on image
+                x1, y1, x2, y2 = prompt_box.astype(int)
+                img_with_box = cv2.rectangle(img_with_box, (x1, y1), (x2, y2), 
+                                            PROMPT_BOX_COLOR, PROMPT_BOX_THICKNESS)
+                # Add text label
+                label_y = max(y1 - PROMPT_BOX_LABEL_Y_OFFSET, PROMPT_BOX_LABEL_MIN_Y)
+                cv2.putText(img_with_box, f"Prompt: {results.get('prompt_mode', 'box')}", 
+                           (x1, label_y), PROMPT_BOX_LABEL_FONT, PROMPT_BOX_LABEL_SCALE,
+                           PROMPT_BOX_COLOR, PROMPT_BOX_LABEL_THICKNESS)
+            
+            # Display images in columns
+            if results.get('prompt_box') is not None:
+                col1, col2, col3, col4 = st.columns(4)
+            else:
+                col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.image(results['image'], caption="Original Image")
+            
+            with col2:
+                # Display binary mask properly - convert to uint8 for visualization
+                # Use explicit parentheses for clarity
+                mask_vis = (mask_bin.astype(np.uint8)) * 255
+                st.image(mask_vis, caption="Segmentation Mask (binary)", clamp=True)
+            
+            with col3:
+                overlay = overlay_mask_on_image(
+                    results['image'],
+                    results['mask'],
+                    color=(255, 0, 0),
+                    alpha=0.5
+                )
+                st.image(overlay, caption="Overlay")
+            
+            if results.get('prompt_box') is not None:
+                with col4:
+                    st.image(img_with_box, caption="Prompt Box")
+
     
     # Check if in local mode or Halo mode
     is_local_mode = st.session_state.local_mode or slide['id'].startswith('local_')
@@ -529,7 +1196,7 @@ def analysis_page():
     col1, col2 = st.columns([3, 1])
     
     with col1:
-        if st.button("🚀 Run Analysis", type="primary", use_container_width=True):
+        if st.button("🚀 Run Analysis", type="primary", ):
             with st.spinner("Processing..."):
                 try:
                     # Get image based on mode
@@ -696,13 +1363,13 @@ def analysis_page():
             col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.image(results['image'], caption="Original Image", use_container_width=True)
+            st.image(results['image'], caption="Original Image")
         
         with col2:
             # Display binary mask properly - convert to uint8 for visualization
             # Use explicit parentheses for clarity
             mask_vis = (mask_bin.astype(np.uint8)) * 255
-            st.image(mask_vis, caption="Segmentation Mask (binary)", clamp=True, use_container_width=True)
+            st.image(mask_vis, caption="Segmentation Mask (binary)", clamp=True)
         
         with col3:
             overlay = overlay_mask_on_image(
@@ -711,11 +1378,11 @@ def analysis_page():
                 color=(255, 0, 0),
                 alpha=0.5
             )
-            st.image(overlay, caption="Overlay", use_container_width=True)
+            st.image(overlay, caption="Overlay")
         
         if results.get('prompt_box') is not None:
             with col4:
-                st.image(img_with_box, caption="Prompt Box", use_container_width=True)
+                st.image(img_with_box, caption="Prompt Box")
 
 
 def export_page():
@@ -769,7 +1436,7 @@ def export_page():
     
     st.markdown("---")
     
-    if st.button("🔄 Generate GeoJSON", type="primary", use_container_width=True):
+    if st.button("🔄 Generate GeoJSON", type="primary", ):
         with st.spinner("Converting mask to GeoJSON..."):
             try:
                 # Convert mask to polygons
@@ -826,8 +1493,7 @@ def export_page():
             label="💾 Download GeoJSON",
             data=geojson_str,
             file_name=st.session_state.geojson_path.name,
-            mime="application/json",
-            use_container_width=True
+            mime="application/json"
         )
         
         st.info("""
