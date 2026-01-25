@@ -648,6 +648,121 @@ For issues, questions, or contributions:
 
 ## Citation
 
+## Halo Link Integration
+
+XHaloPathAnalyzer now includes support for Halo Link, providing OIDC discovery, OAuth2 authentication, and GraphQL integration.
+
+### Prerequisites
+
+⚠️ **VPN Requirement**: You must be connected to your organization's VPN to access Halo Link services.
+
+### Configuration
+
+Add the following environment variables to your `.env` file:
+
+```bash
+# Required: Base URL for Halo Link
+HALOLINK_BASE_URL=https://halolink.example.com
+
+# Optional: Direct GraphQL endpoint (preferred if you know it)
+HALOLINK_GRAPHQL_URL=https://halolink.example.com/api/graphql
+
+# Optional: GraphQL path (used if GRAPHQL_URL not set)
+HALOLINK_GRAPHQL_PATH=/api/graphql
+
+# Optional: OAuth2 credentials (required for authenticated access)
+HALOLINK_CLIENT_ID=your_client_id
+HALOLINK_CLIENT_SECRET=your_client_secret
+
+# Optional: OAuth2 scope
+HALOLINK_SCOPE=read write
+```
+
+### Finding Your GraphQL Endpoint
+
+If you don't know your GraphQL endpoint URL, you can find it using browser DevTools:
+
+1. Open your Halo Link web interface in a browser (Chrome/Firefox)
+2. Open Developer Tools (F12 or Right-click → Inspect)
+3. Go to the **Network** tab
+4. Interact with Halo Link (e.g., browse slides, view data)
+5. Filter network requests by "graphql" or "api"
+6. Look for POST requests to endpoints like:
+   - `https://halolink.example.com/api/graphql`
+   - `https://halolink.example.com/graphql`
+7. Copy the full URL and set it as `HALOLINK_GRAPHQL_URL`
+
+### Testing Your Configuration
+
+Test your Halo Link configuration using the CLI smoke test:
+
+```bash
+# Basic test
+python -m xhalo.halolink.smoketest
+
+# Verbose output
+python -m xhalo.halolink.smoketest --verbose
+
+# Custom test query (default is '{ __typename }')
+export HALOLINK_SMOKETEST_QUERY='{ __typename }'
+python -m xhalo.halolink.smoketest
+```
+
+The smoke test will:
+1. ✓ Initialize the client
+2. ✓ Perform OIDC discovery
+3. ✓ Retrieve OAuth2 token (if credentials configured)
+4. ✓ Execute a test GraphQL query
+
+### Using in Streamlit
+
+The Halo Link integration is available in the Streamlit app:
+
+1. Launch the app: `streamlit run app.py`
+2. Navigate to **⚙️ Settings** page
+3. Scroll to the **🔗 Halo Link Integration** section
+4. Click **Run Halo Link Smoke Test** to test your configuration
+5. View results and detailed output
+
+### Troubleshooting
+
+**Connection Failed / Timeout**
+- ✓ Verify you're connected to VPN
+- ✓ Check `HALOLINK_BASE_URL` is correct
+- ✓ Verify the server is accessible from your network
+
+**OIDC Discovery Failed**
+- ✓ Verify `HALOLINK_BASE_URL` points to the correct server
+- ✓ Ensure the server supports OIDC (has `/.well-known/openid-configuration`)
+- ✓ Check VPN connection
+
+**Token Retrieval Failed**
+- ✓ Verify `HALOLINK_CLIENT_ID` and `HALOLINK_CLIENT_SECRET` are correct
+- ✓ Check that your client credentials have not expired
+- ✓ Ensure you have proper permissions
+
+**GraphQL Query Failed**
+- ✓ Verify `HALOLINK_GRAPHQL_URL` or `HALOLINK_GRAPHQL_PATH` is correct
+- ✓ Check the query syntax is valid
+- ✓ Ensure your token has appropriate permissions for the query
+
+### Example Configuration
+
+```bash
+# Example for production environment
+HALOLINK_BASE_URL=https://halolink.ohsu.edu
+HALOLINK_GRAPHQL_URL=https://halolink.ohsu.edu/api/v1/graphql
+HALOLINK_CLIENT_ID=my-client-id
+HALOLINK_CLIENT_SECRET=my-secret-key
+HALOLINK_SCOPE=read write
+
+# Example for development/testing (no auth)
+HALOLINK_BASE_URL=https://halolink-dev.example.com
+HALOLINK_GRAPHQL_PATH=/graphql
+```
+
+---
+
 If you use this tool in your research, please cite:
 
 ```bibtex
