@@ -72,7 +72,8 @@ class TestOIDCDiscovery:
     @patch('xhalo.halolink.halolink_client.requests.get')
     def test_oidc_discovery_connection_error(self, mock_get):
         """Test OIDC discovery with connection error (off VPN)"""
-        mock_get.side_effect = ConnectionError("Connection refused")
+        import requests
+        mock_get.side_effect = requests.exceptions.ConnectionError("Connection refused")
         
         client = HaloLinkClient(base_url="https://halolink.example.com")
         
@@ -184,7 +185,7 @@ class TestTokenRetrieval:
         """Test that token retrieval fails without credentials"""
         client = HaloLinkClient(base_url="https://halolink.example.com")
         
-        with pytest.raises(ValueError, match="CLIENT_ID and CLIENT_SECRET are required"):
+        with pytest.raises(ValueError, match="HALOLINK_CLIENT_ID and HALOLINK_CLIENT_SECRET are required"):
             client._retrieve_token()
     
     @patch('xhalo.halolink.halolink_client.requests.get')
