@@ -36,7 +36,7 @@ from PIL import Image
 import io
 import json
 import logging
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
