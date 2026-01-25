@@ -51,6 +51,9 @@ PROMPT_BOX_LABEL_THICKNESS = 2
 PROMPT_BOX_LABEL_Y_OFFSET = 10
 PROMPT_BOX_LABEL_MIN_Y = 20
 
+# Channel mapping constant
+CHANNEL_INDEX_MAP = {'R': 0, 'G': 1, 'B': 2}
+
 # Import local modules
 from xhalo.api import HaloAPIClient, MockHaloAPIClient
 from xhalo.ml import MedSAMPredictor as XHaloMedSAMPredictor, segment_tissue
@@ -358,7 +361,7 @@ def prepare_channel_input(image: np.ndarray, channel_config: Dict[str, Any]) -> 
             selected_channels = ['R']
         
         channel_name = selected_channels[0]
-        channel_idx = {'R': 0, 'G': 1, 'B': 2}[channel_name]
+        channel_idx = CHANNEL_INDEX_MAP[channel_name]
         single_channel = image[:, :, channel_idx]
         
         # Replicate to 3 channels
@@ -369,7 +372,7 @@ def prepare_channel_input(image: np.ndarray, channel_config: Dict[str, Any]) -> 
         # Multi-channel - generate one image per selected channel
         results = []
         for channel_name in selected_channels:
-            channel_idx = {'R': 0, 'G': 1, 'B': 2}[channel_name]
+            channel_idx = CHANNEL_INDEX_MAP[channel_name]
             single_channel = image[:, :, channel_idx]
             three_channel = np.stack([single_channel, single_channel, single_channel], axis=-1)
             results.append((three_channel, channel_name))
@@ -472,9 +475,8 @@ def post_process_mask(mask: np.ndarray,
     
     # Remove small objects
     if min_area_px > 0:
-        # Note: max_size parameter removes objects smaller than or equal to the threshold
-        # We use min_area_px - 1 to remove objects strictly smaller than min_area_px
-        binary = morphology.remove_small_objects(binary, max_size=min_area_px - 1 if min_area_px > 1 else 0)
+        # Note: max_size parameter removes objects with area <= threshold (new API in scikit-image 0.26+)
+        binary = morphology.remove_small_objects(binary, max_size=min_area_px)
     
     # Instance segmentation
     instance_mask = None

@@ -86,7 +86,6 @@ data/output/
 .pytest_cache/
 .coverage
 htmlcov/
-test_medsam_improvements.py
 
 # Streamlit
 .streamlit/
