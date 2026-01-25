@@ -36,13 +36,13 @@ pip install uv
 **Using uv (faster, recommended):**
 ```bash
 uv venv
-source .venv/bin/activate # On Windows: .venv\Scripts\activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
 **Using traditional venv:**
 ```bash
 python -m venv venv
-source venv/bin/activate # On Windows: venv\Scripts\activate
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
 ### 4. Install Dependencies
@@ -111,32 +111,32 @@ geojson = mask_to_geojson(mask)
 ## First Steps with the Web Interface
 
 1. **Connect to Halo API**
- - In the sidebar, check "Use Mock API" for testing
- - Or enter your Halo API credentials
- - Click "Connect to Halo"
+   - In the sidebar, check "Use Mock API" for testing
+   - Or enter your Halo API credentials
+   - Click "Connect to Halo"
 
 2. **Initialize MedSAM**
- - Select device (CPU, CUDA, or MPS - automatically detected)
- - Click "Initialize MedSAM"
+   - Select device (CPU, CUDA, or MPS - automatically detected)
+   - Click "Initialize MedSAM"
 
 3. **Load an Image**
- - Go to "Slide Selection" tab
- - Upload a local image file
- - Or load slides from Halo
+   - Go to "Slide Selection" tab
+   - Upload a local image file
+   - Or load slides from Halo
 
 4. **Run Segmentation**
- - Go to "Segmentation" tab
- - Adjust parameters if needed
- - Click "Run Segmentation"
+   - Go to "Segmentation" tab
+   - Adjust parameters if needed
+   - Click "Run Segmentation"
 
 5. **View Results**
- - See segmentation mask and overlay
- - Check statistics
+   - See segmentation mask and overlay
+   - Check statistics
 
 6. **Export Results**
- - Go to "Export/Import" tab
- - Export as GeoJSON or PNG
- - Import back to Halo
+   - Go to "Export/Import" tab
+   - Export as GeoJSON or PNG
+   - Import back to Halo
 
 ## Example Workflow
 
@@ -201,8 +201,8 @@ streamlit run app.py --server.port=8502
 
 ## Getting Help
 
-- [Documentation](../README.md)
-- [GitHub Issues](https://github.com/eisascience/XHaloPathAnalyzer/issues)
-- [Examples](../examples/)
+-  [Documentation](../README.md)
+-  [GitHub Issues](https://github.com/eisascience/XHaloPathAnalyzer/issues)
+-  [Examples](../examples/)
 
 Happy analyzing! 

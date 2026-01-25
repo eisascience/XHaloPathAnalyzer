@@ -28,27 +28,27 @@ This guide provides a complete, step-by-step approach to building an **OS-agnost
 ### Architecture Diagram (Text-Based)
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Streamlit Web GUI │
-│ ┌──────────┬──────────┬──────────┬────────────┬──────────┐ │
-│ │ Auth/ │ Slide │ Export │ Analysis │ Import/ │ │
-│ │ Config │ Selection│ Data │ (MedSAM) │ View │ │
-│ └──────────┴──────────┴──────────┴────────────┴──────────┘ │
+│                    Streamlit Web GUI                         │
+│  ┌──────────┬──────────┬──────────┬────────────┬──────────┐ │
+│  │  Auth/   │  Slide   │  Export  │  Analysis  │  Import/ │ │
+│  │ Config   │ Selection│   Data   │ (MedSAM)   │   View   │ │
+│  └──────────┴──────────┴──────────┴────────────┴──────────┘ │
 └─────────────────────────────────────────────────────────────┘
- 
+                          
 ┌─────────────────────────────────────────────────────────────┐
-│ Python Backend Functions │
-│ ┌──────────────┬──────────────────┬──────────────────────┐ │
-│ │ GraphQL API │ Image Processing │ ML Model Inference │ │
-│ │ Interface │ (large_image) │ (MedSAM/SAM) │ │
-│ └──────────────┴──────────────────┴──────────────────────┘ │
+│                  Python Backend Functions                    │
+│  ┌──────────────┬──────────────────┬──────────────────────┐ │
+│  │ GraphQL API  │ Image Processing │ ML Model Inference   │ │
+│  │  Interface   │ (large_image)    │ (MedSAM/SAM)        │ │
+│  └──────────────┴──────────────────┴──────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
- 
+                          
 ┌─────────────────────────────────────────────────────────────┐
-│ Halo Digital Pathology Platform │
-│ (GraphQL API @ /graphql, API Token Authentication) │
-│ • Whole-Slide Images (WSI) Storage │
-│ • Metadata & Annotations │
-│ • Visualization & Annotation Tools │
+│              Halo Digital Pathology Platform                 │
+│     (GraphQL API @ /graphql, API Token Authentication)       │
+│  • Whole-Slide Images (WSI) Storage                         │
+│  • Metadata & Annotations                                    │
+│  • Visualization & Annotation Tools                          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -74,7 +74,7 @@ sudo apt install python3.10 python3.10-pip python3.10-venv
 # Download from https://www.python.org/downloads/
 
 # Verify installation
-python3 --version # Should be 3.10 or higher
+python3 --version  # Should be 3.10 or higher
 ```
 
 ---
@@ -88,20 +88,20 @@ The application follows a modular architecture:
 
 ```
 XHaloPathAnalyzer/
-├── app.py # Main Streamlit application
-├── config.py # Configuration management
-├── requirements.txt # Python dependencies
-├── .env.example # Template for environment variables
-├── .gitignore # Git ignore patterns
+├── app.py                 # Main Streamlit application
+├── config.py              # Configuration management
+├── requirements.txt       # Python dependencies
+├── .env.example          # Template for environment variables
+├── .gitignore            # Git ignore patterns
 ├── utils/
-│ ├── __init__.py
-│ ├── halo_api.py # Halo GraphQL API functions
-│ ├── image_proc.py # Image processing utilities
-│ ├── ml_models.py # ML model integration (MedSAM)
-│ └── geojson_utils.py # GeoJSON import/export
-├── models/ # Directory for model weights
-│ └── medsam_vit_b.pth
-└── temp/ # Temporary file storage
+│   ├── __init__.py
+│   ├── halo_api.py       # Halo GraphQL API functions
+│   ├── image_proc.py     # Image processing utilities
+│   ├── ml_models.py      # ML model integration (MedSAM)
+│   └── geojson_utils.py  # GeoJSON import/export
+├── models/               # Directory for model weights
+│   └── medsam_vit_b.pth
+└── temp/                 # Temporary file storage
 ```
 
 #### 2.2 Backend Functions
@@ -132,15 +132,15 @@ cd XHaloPathAnalyzer
 
 # Option A: Using uv (Recommended, especially for Mac M2/ARM)
 # Install uv first if not already installed
-curl -LsSf https://astral.sh/uv/install.sh | sh # macOS/Linux
-# Or: brew install uv # macOS via Homebrew
+curl -LsSf https://astral.sh/uv/install.sh | sh  # macOS/Linux
+# Or: brew install uv  # macOS via Homebrew
 
 # Create virtual environment with uv
 uv venv
 
 # Activate virtual environment
-source .venv/bin/activate # macOS/Linux
-# Or: .venv\Scripts\activate # Windows
+source .venv/bin/activate  # macOS/Linux
+# Or: .venv\Scripts\activate  # Windows
 
 # Install dependencies with uv (much faster!)
 uv pip install -r requirements.txt
@@ -228,7 +228,7 @@ Create `.env` file:
 cp .env.example .env
 
 # Edit with your credentials
-nano .env # or use your preferred editor
+nano .env  # or use your preferred editor
 ```
 
 `.env.example` contents:
@@ -282,38 +282,38 @@ from pathlib import Path
 load_dotenv()
 
 class Config:
- """Application configuration management"""
-
- # Halo API settings
- HALO_API_ENDPOINT = os.getenv("HALO_API_ENDPOINT", "")
- HALO_API_TOKEN = os.getenv("HALO_API_TOKEN", "")
-
- # Model settings
- MEDSAM_CHECKPOINT = os.getenv("MEDSAM_CHECKPOINT", "./models/medsam_vit_b.pth")
-
- # Application settings
- MAX_IMAGE_SIZE_MB = int(os.getenv("MAX_IMAGE_SIZE_MB", "500"))
- TEMP_DIR = os.getenv("TEMP_DIR", "./temp")
- LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-
- # Device configuration
- DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
- @classmethod
- def validate(cls):
- """Validate required configuration"""
- errors = []
-
- if not cls.HALO_API_ENDPOINT:
- errors.append("HALO_API_ENDPOINT is required")
- if not cls.HALO_API_TOKEN:
- errors.append("HALO_API_TOKEN is required")
-
- if errors:
- raise ValueError("Configuration errors: " + ", ".join(errors))
-
- # Create temp directory if it doesn't exist
- Path(cls.TEMP_DIR).mkdir(parents=True, exist_ok=True)
+    """Application configuration management"""
+    
+    # Halo API settings
+    HALO_API_ENDPOINT = os.getenv("HALO_API_ENDPOINT", "")
+    HALO_API_TOKEN = os.getenv("HALO_API_TOKEN", "")
+    
+    # Model settings
+    MEDSAM_CHECKPOINT = os.getenv("MEDSAM_CHECKPOINT", "./models/medsam_vit_b.pth")
+    
+    # Application settings
+    MAX_IMAGE_SIZE_MB = int(os.getenv("MAX_IMAGE_SIZE_MB", "500"))
+    TEMP_DIR = os.getenv("TEMP_DIR", "./temp")
+    LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+    
+    # Device configuration
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    @classmethod
+    def validate(cls):
+        """Validate required configuration"""
+        errors = []
+        
+        if not cls.HALO_API_ENDPOINT:
+            errors.append("HALO_API_ENDPOINT is required")
+        if not cls.HALO_API_TOKEN:
+            errors.append("HALO_API_TOKEN is required")
+            
+        if errors:
+            raise ValueError("Configuration errors: " + ", ".join(errors))
+        
+        # Create temp directory if it doesn't exist
+        Path(cls.TEMP_DIR).mkdir(parents=True, exist_ok=True)
 ```
 
 ### 4.2 Halo API Integration (utils/halo_api.py)
@@ -327,78 +327,78 @@ import requests
 from typing import List, Dict, Optional
 
 class HaloAPI:
- """Interface for Halo GraphQL API"""
-
- def __init__(self, endpoint: str, token: str):
- self.endpoint = endpoint
- self.token = token
- self.headers = {"Authorization": f"Bearer {token}"}
-
- # Setup GraphQL client
- transport = AIOHTTPTransport(
- url=endpoint,
- headers=self.headers
- )
- self.client = Client(transport=transport, fetch_schema_from_transport=True)
-
- async def get_slides(self, limit: int = 100) -> List[Dict]:
- """Fetch list of available slides"""
- query = gql('''
- query GetSlides($limit: Int!) {
- slides(first: $limit) {
- edges {
- node {
- id
- name
- width
- height
- mpp
- studyId
- createdAt
- }
- }
- }
- }
- ''')
-
- result = await self.client.execute_async(query, variable_values={"limit": limit})
- return [edge['node'] for edge in result['slides']['edges']]
-
- async def get_slide_metadata(self, slide_id: str) -> Dict:
- """Fetch detailed metadata for a specific slide"""
- query = gql('''
- query GetSlide($id: ID!) {
- slide(id: $id) {
- id
- name
- width
- height
- mpp
- tileSize
- format
- metadata
- }
- }
- ''')
-
- result = await self.client.execute_async(query, variable_values={"id": slide_id})
- return result['slide']
-
- def download_region(self, slide_id: str, x: int, y: int, 
- width: int, height: int, level: int = 0) -> bytes:
- """Download a specific region from a slide"""
- url = f"{self.endpoint.replace('/graphql', '')}/slides/{slide_id}/region"
- params = {
- "x": x,
- "y": y,
- "width": width,
- "height": height,
- "level": level
- }
-
- response = requests.get(url, params=params, headers=self.headers)
- response.raise_for_status()
- return response.content
+    """Interface for Halo GraphQL API"""
+    
+    def __init__(self, endpoint: str, token: str):
+        self.endpoint = endpoint
+        self.token = token
+        self.headers = {"Authorization": f"Bearer {token}"}
+        
+        # Setup GraphQL client
+        transport = AIOHTTPTransport(
+            url=endpoint,
+            headers=self.headers
+        )
+        self.client = Client(transport=transport, fetch_schema_from_transport=True)
+    
+    async def get_slides(self, limit: int = 100) -> List[Dict]:
+        """Fetch list of available slides"""
+        query = gql('''
+            query GetSlides($limit: Int!) {
+                slides(first: $limit) {
+                    edges {
+                        node {
+                            id
+                            name
+                            width
+                            height
+                            mpp
+                            studyId
+                            createdAt
+                        }
+                    }
+                }
+            }
+        ''')
+        
+        result = await self.client.execute_async(query, variable_values={"limit": limit})
+        return [edge['node'] for edge in result['slides']['edges']]
+    
+    async def get_slide_metadata(self, slide_id: str) -> Dict:
+        """Fetch detailed metadata for a specific slide"""
+        query = gql('''
+            query GetSlide($id: ID!) {
+                slide(id: $id) {
+                    id
+                    name
+                    width
+                    height
+                    mpp
+                    tileSize
+                    format
+                    metadata
+                }
+            }
+        ''')
+        
+        result = await self.client.execute_async(query, variable_values={"id": slide_id})
+        return result['slide']
+    
+    def download_region(self, slide_id: str, x: int, y: int, 
+                       width: int, height: int, level: int = 0) -> bytes:
+        """Download a specific region from a slide"""
+        url = f"{self.endpoint.replace('/graphql', '')}/slides/{slide_id}/region"
+        params = {
+            "x": x,
+            "y": y,
+            "width": width,
+            "height": height,
+            "level": level
+        }
+        
+        response = requests.get(url, params=params, headers=self.headers)
+        response.raise_for_status()
+        return response.content
 ```
 
 ### 4.3 Image Processing (utils/image_proc.py)
@@ -413,35 +413,35 @@ from typing import Tuple, Optional
 import io
 
 def load_image_region(image_data: bytes) -> np.ndarray:
- """Load image data into numpy array"""
- img = Image.open(io.BytesIO(image_data))
- return np.array(img)
+    """Load image data into numpy array"""
+    img = Image.open(io.BytesIO(image_data))
+    return np.array(img)
 
 def preprocess_for_medsam(image: np.ndarray, target_size: int = 1024) -> np.ndarray:
- """Preprocess image for MedSAM inference"""
- # Resize to target size while maintaining aspect ratio
- h, w = image.shape[:2]
- scale = target_size / max(h, w)
-
- if scale < 1:
- new_h, new_w = int(h * scale), int(w * scale)
- image = np.array(Image.fromarray(image).resize((new_w, new_h), Image.BILINEAR))
-
- # Pad to square
- h, w = image.shape[:2]
- pad_h = (target_size - h) // 2
- pad_w = (target_size - w) // 2
-
- padded = np.zeros((target_size, target_size, 3), dtype=np.uint8)
- padded[pad_h:pad_h+h, pad_w:pad_w+w] = image
-
- return padded
+    """Preprocess image for MedSAM inference"""
+    # Resize to target size while maintaining aspect ratio
+    h, w = image.shape[:2]
+    scale = target_size / max(h, w)
+    
+    if scale < 1:
+        new_h, new_w = int(h * scale), int(w * scale)
+        image = np.array(Image.fromarray(image).resize((new_w, new_h), Image.BILINEAR))
+    
+    # Pad to square
+    h, w = image.shape[:2]
+    pad_h = (target_size - h) // 2
+    pad_w = (target_size - w) // 2
+    
+    padded = np.zeros((target_size, target_size, 3), dtype=np.uint8)
+    padded[pad_h:pad_h+h, pad_w:pad_w+w] = image
+    
+    return padded
 
 def postprocess_mask(mask: np.ndarray, original_shape: Tuple[int, int]) -> np.ndarray:
- """Resize mask back to original image dimensions"""
- mask_img = Image.fromarray((mask * 255).astype(np.uint8))
- mask_resized = mask_img.resize((original_shape[1], original_shape[0]), Image.NEAREST)
- return np.array(mask_resized) > 0
+    """Resize mask back to original image dimensions"""
+    mask_img = Image.fromarray((mask * 255).astype(np.uint8))
+    mask_resized = mask_img.resize((original_shape[1], original_shape[0]), Image.NEAREST)
+    return np.array(mask_resized) > 0
 ```
 
 ### 4.4 ML Model Integration (utils/ml_models.py)
@@ -455,68 +455,68 @@ from segment_anything import sam_model_registry
 from typing import Tuple, Optional
 
 class MedSAMPredictor:
- """Wrapper for MedSAM model inference"""
-
- def __init__(self, checkpoint_path: str, device: str = "cuda"):
- self.device = device
- self.model = self._load_model(checkpoint_path)
- self.model.eval()
-
- def _load_model(self, checkpoint_path: str):
- """Load MedSAM model from checkpoint"""
- model = sam_model_registry["vit_b"](checkpoint=checkpoint_path)
- model.to(self.device)
- return model
-
- def predict(self, image: np.ndarray, 
- point_coords: Optional[np.ndarray] = None,
- point_labels: Optional[np.ndarray] = None,
- box: Optional[np.ndarray] = None) -> np.ndarray:
- """
- Run inference on image
-
- Args:
- image: RGB image as numpy array (H, W, 3)
- point_coords: Point prompts (N, 2) in (x, y) format
- point_labels: Labels for points (1 = foreground, 0 = background)
- box: Bounding box prompt (x1, y1, x2, y2)
-
- Returns:
- Binary mask as numpy array
- """
- # Prepare image
- image_tensor = torch.from_numpy(image).permute(2, 0, 1).float()
- image_tensor = image_tensor.unsqueeze(0).to(self.device)
-
- # Encode image
- with torch.no_grad():
- image_embedding = self.model.image_encoder(image_tensor)
-
- # Prepare prompts
- prompt_points = None
- prompt_labels = None
- prompt_box = None
-
- if point_coords is not None:
- prompt_points = torch.from_numpy(point_coords).float().to(self.device)
- prompt_labels = torch.from_numpy(point_labels).float().to(self.device)
-
- if box is not None:
- prompt_box = torch.from_numpy(box).float().to(self.device)
-
- # Decode mask
- with torch.no_grad():
- masks, scores, _ = self.model.mask_decoder(
- image_embeddings=image_embedding,
- point_coords=prompt_points,
- point_labels=prompt_labels,
- boxes=prompt_box
- )
-
- # Return best mask
- best_mask_idx = scores.argmax()
- mask = masks[0, best_mask_idx].cpu().numpy()
- return mask > 0.5
+    """Wrapper for MedSAM model inference"""
+    
+    def __init__(self, checkpoint_path: str, device: str = "cuda"):
+        self.device = device
+        self.model = self._load_model(checkpoint_path)
+        self.model.eval()
+    
+    def _load_model(self, checkpoint_path: str):
+        """Load MedSAM model from checkpoint"""
+        model = sam_model_registry["vit_b"](checkpoint=checkpoint_path)
+        model.to(self.device)
+        return model
+    
+    def predict(self, image: np.ndarray, 
+                point_coords: Optional[np.ndarray] = None,
+                point_labels: Optional[np.ndarray] = None,
+                box: Optional[np.ndarray] = None) -> np.ndarray:
+        """
+        Run inference on image
+        
+        Args:
+            image: RGB image as numpy array (H, W, 3)
+            point_coords: Point prompts (N, 2) in (x, y) format
+            point_labels: Labels for points (1 = foreground, 0 = background)
+            box: Bounding box prompt (x1, y1, x2, y2)
+            
+        Returns:
+            Binary mask as numpy array
+        """
+        # Prepare image
+        image_tensor = torch.from_numpy(image).permute(2, 0, 1).float()
+        image_tensor = image_tensor.unsqueeze(0).to(self.device)
+        
+        # Encode image
+        with torch.no_grad():
+            image_embedding = self.model.image_encoder(image_tensor)
+        
+        # Prepare prompts
+        prompt_points = None
+        prompt_labels = None
+        prompt_box = None
+        
+        if point_coords is not None:
+            prompt_points = torch.from_numpy(point_coords).float().to(self.device)
+            prompt_labels = torch.from_numpy(point_labels).float().to(self.device)
+        
+        if box is not None:
+            prompt_box = torch.from_numpy(box).float().to(self.device)
+        
+        # Decode mask
+        with torch.no_grad():
+            masks, scores, _ = self.model.mask_decoder(
+                image_embeddings=image_embedding,
+                point_coords=prompt_points,
+                point_labels=prompt_labels,
+                boxes=prompt_box
+            )
+        
+        # Return best mask
+        best_mask_idx = scores.argmax()
+        mask = masks[0, best_mask_idx].cpu().numpy()
+        return mask > 0.5
 ```
 
 ### 4.5 GeoJSON Utilities (utils/geojson_utils.py)
@@ -530,57 +530,57 @@ from typing import List, Dict
 import json
 
 def mask_to_polygons(mask: np.ndarray, min_area: int = 100) -> List[np.ndarray]:
- """Convert binary mask to list of polygon contours"""
- contours = measure.find_contours(mask, 0.5)
-
- # Filter by area
- polygons = []
- for contour in contours:
- if len(contour) >= 3:
- area = polygon_area(contour)
- if area >= min_area:
- polygons.append(contour)
-
- return polygons
+    """Convert binary mask to list of polygon contours"""
+    contours = measure.find_contours(mask, 0.5)
+    
+    # Filter by area
+    polygons = []
+    for contour in contours:
+        if len(contour) >= 3:
+            area = polygon_area(contour)
+            if area >= min_area:
+                polygons.append(contour)
+    
+    return polygons
 
 def polygon_area(polygon: np.ndarray) -> float:
- """Calculate polygon area using shoelace formula"""
- x = polygon[:, 1]
- y = polygon[:, 0]
- return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+    """Calculate polygon area using shoelace formula"""
+    x = polygon[:, 1]
+    y = polygon[:, 0]
+    return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
 def polygons_to_geojson(polygons: List[np.ndarray], 
- properties: Dict = None) -> Dict:
- """Convert polygons to GeoJSON FeatureCollection"""
- features = []
-
- for idx, polygon in enumerate(polygons):
- # Convert to [x, y] format
- coords = [[float(point[1]), float(point[0])] for point in polygon]
- coords.append(coords[0]) # Close polygon
-
- feature = {
- "type": "Feature",
- "geometry": {
- "type": "Polygon",
- "coordinates": [coords]
- },
- "properties": {
- "id": idx,
- "classification": properties.get("classification", "detected_object") if properties else "detected_object"
- }
- }
- features.append(feature)
-
- return {
- "type": "FeatureCollection",
- "features": features
- }
+                        properties: Dict = None) -> Dict:
+    """Convert polygons to GeoJSON FeatureCollection"""
+    features = []
+    
+    for idx, polygon in enumerate(polygons):
+        # Convert to [x, y] format
+        coords = [[float(point[1]), float(point[0])] for point in polygon]
+        coords.append(coords[0])  # Close polygon
+        
+        feature = {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [coords]
+            },
+            "properties": {
+                "id": idx,
+                "classification": properties.get("classification", "detected_object") if properties else "detected_object"
+            }
+        }
+        features.append(feature)
+    
+    return {
+        "type": "FeatureCollection",
+        "features": features
+    }
 
 def save_geojson(geojson: Dict, filepath: str):
- """Save GeoJSON to file"""
- with open(filepath, 'w') as f:
- json.dump(geojson, f, indent=2)
+    """Save GeoJSON to file"""
+    with open(filepath, 'w') as f:
+        json.dump(geojson, f, indent=2)
 ```
 
 ---
@@ -602,188 +602,188 @@ from utils.geojson_utils import *
 
 # Page configuration
 st.set_page_config(
- page_title="XHaloPathAnalyzer",
- page_icon="",
- layout="wide"
+    page_title="XHaloPathAnalyzer",
+    page_icon="",
+    layout="wide"
 )
 
 # Initialize session state
 if 'authenticated' not in st.session_state:
- st.session_state.authenticated = False
+    st.session_state.authenticated = False
 if 'api' not in st.session_state:
- st.session_state.api = None
+    st.session_state.api = None
 if 'predictor' not in st.session_state:
- st.session_state.predictor = None
+    st.session_state.predictor = None
 
 def authentication_page():
- """Authentication and configuration page"""
- st.title("Authentication")
- st.write("Configure your Halo API connection")
-
- endpoint = st.text_input("Halo API Endpoint", value=Config.HALO_API_ENDPOINT)
- token = st.text_input("API Token", value=Config.HALO_API_TOKEN, type="password")
-
- if st.button("Connect"):
- try:
- # Test connection
- api = HaloAPI(endpoint, token)
- st.session_state.api = api
- st.session_state.authenticated = True
- st.success("Connected successfully!")
- st.rerun()
- except Exception as e:
- st.error(f"Connection failed: {str(e)}")
+    """Authentication and configuration page"""
+    st.title(" Authentication")
+    st.write("Configure your Halo API connection")
+    
+    endpoint = st.text_input("Halo API Endpoint", value=Config.HALO_API_ENDPOINT)
+    token = st.text_input("API Token", value=Config.HALO_API_TOKEN, type="password")
+    
+    if st.button("Connect"):
+        try:
+            # Test connection
+            api = HaloAPI(endpoint, token)
+            st.session_state.api = api
+            st.session_state.authenticated = True
+            st.success(" Connected successfully!")
+            st.rerun()
+        except Exception as e:
+            st.error(f" Connection failed: {str(e)}")
 
 def slide_selection_page():
- """Slide selection interface"""
- st.title("Slide Selection")
-
- if st.session_state.api is None:
- st.warning("Please authenticate first")
- return
-
- # Fetch slides
- with st.spinner("Loading slides..."):
- slides = asyncio.run(st.session_state.api.get_slides())
-
- if not slides:
- st.warning("No slides found")
- return
-
- # Display slides in table
- import pandas as pd
- df = pd.DataFrame(slides)
- selected_idx = st.selectbox("Select a slide", range(len(df)), 
- format_func=lambda i: df.iloc[i]['name'])
-
- if selected_idx is not None:
- st.session_state.selected_slide = slides[selected_idx]
- st.json(slides[selected_idx])
+    """Slide selection interface"""
+    st.title(" Slide Selection")
+    
+    if st.session_state.api is None:
+        st.warning("Please authenticate first")
+        return
+    
+    # Fetch slides
+    with st.spinner("Loading slides..."):
+        slides = asyncio.run(st.session_state.api.get_slides())
+    
+    if not slides:
+        st.warning("No slides found")
+        return
+    
+    # Display slides in table
+    import pandas as pd
+    df = pd.DataFrame(slides)
+    selected_idx = st.selectbox("Select a slide", range(len(df)), 
+                                format_func=lambda i: df.iloc[i]['name'])
+    
+    if selected_idx is not None:
+        st.session_state.selected_slide = slides[selected_idx]
+        st.json(slides[selected_idx])
 
 def analysis_page():
- """Analysis interface with MedSAM"""
- st.title("Analysis")
-
- if 'selected_slide' not in st.session_state:
- st.warning("Please select a slide first")
- return
-
- slide = st.session_state.selected_slide
- st.write(f"Analyzing: **{slide['name']}**")
-
- # ROI selection
- col1, col2 = st.columns(2)
- with col1:
- x = st.number_input("X coordinate", min_value=0, value=0)
- y = st.number_input("Y coordinate", min_value=0, value=0)
- with col2:
- width = st.number_input("Width", min_value=1, value=1024)
- height = st.number_input("Height", min_value=1, value=1024)
-
- if st.button("Run Analysis"):
- with st.spinner("Processing..."):
- try:
- # Download region
- region_data = st.session_state.api.download_region(
- slide['id'], x, y, width, height
- )
- image = load_image_region(region_data)
-
- # Initialize predictor if needed
- if st.session_state.predictor is None:
- st.session_state.predictor = MedSAMPredictor(
- Config.MEDSAM_CHECKPOINT,
- device=Config.DEVICE
- )
-
- # Preprocess
- preprocessed = preprocess_for_medsam(image)
-
- # Run inference (automatic mode - no prompts)
- mask = st.session_state.predictor.predict(preprocessed)
-
- # Postprocess
- final_mask = postprocess_mask(mask, image.shape[:2])
-
- # Display results
- col1, col2 = st.columns(2)
- with col1:
- st.image(image, caption="Original", use_column_width=True)
- with col2:
- st.image(final_mask, caption="Segmentation", use_column_width=True)
-
- # Store results
- st.session_state.analysis_results = {
- 'image': image,
- 'mask': final_mask,
- 'roi': (x, y, width, height)
- }
-
- st.success("Analysis complete!")
-
- except Exception as e:
- st.error(f"Analysis failed: {str(e)}")
+    """Analysis interface with MedSAM"""
+    st.title(" Analysis")
+    
+    if 'selected_slide' not in st.session_state:
+        st.warning("Please select a slide first")
+        return
+    
+    slide = st.session_state.selected_slide
+    st.write(f"Analyzing: **{slide['name']}**")
+    
+    # ROI selection
+    col1, col2 = st.columns(2)
+    with col1:
+        x = st.number_input("X coordinate", min_value=0, value=0)
+        y = st.number_input("Y coordinate", min_value=0, value=0)
+    with col2:
+        width = st.number_input("Width", min_value=1, value=1024)
+        height = st.number_input("Height", min_value=1, value=1024)
+    
+    if st.button("Run Analysis"):
+        with st.spinner("Processing..."):
+            try:
+                # Download region
+                region_data = st.session_state.api.download_region(
+                    slide['id'], x, y, width, height
+                )
+                image = load_image_region(region_data)
+                
+                # Initialize predictor if needed
+                if st.session_state.predictor is None:
+                    st.session_state.predictor = MedSAMPredictor(
+                        Config.MEDSAM_CHECKPOINT,
+                        device=Config.DEVICE
+                    )
+                
+                # Preprocess
+                preprocessed = preprocess_for_medsam(image)
+                
+                # Run inference (automatic mode - no prompts)
+                mask = st.session_state.predictor.predict(preprocessed)
+                
+                # Postprocess
+                final_mask = postprocess_mask(mask, image.shape[:2])
+                
+                # Display results
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.image(image, caption="Original", use_column_width=True)
+                with col2:
+                    st.image(final_mask, caption="Segmentation", use_column_width=True)
+                
+                # Store results
+                st.session_state.analysis_results = {
+                    'image': image,
+                    'mask': final_mask,
+                    'roi': (x, y, width, height)
+                }
+                
+                st.success(" Analysis complete!")
+                
+            except Exception as e:
+                st.error(f" Analysis failed: {str(e)}")
 
 def export_page():
- """Export results to GeoJSON"""
- st.title("Export Results")
-
- if 'analysis_results' not in st.session_state:
- st.warning("No analysis results to export")
- return
-
- results = st.session_state.analysis_results
-
- classification = st.text_input("Classification label", value="detected_cells")
-
- if st.button("Generate GeoJSON"):
- with st.spinner("Converting to GeoJSON..."):
- # Convert mask to polygons
- polygons = mask_to_polygons(results['mask'])
-
- # Create GeoJSON
- geojson = polygons_to_geojson(
- polygons,
- properties={"classification": classification}
- )
-
- # Save to file
- output_path = f"{Config.TEMP_DIR}/annotations.geojson"
- save_geojson(geojson, output_path)
-
- st.success(f"Exported {len(polygons)} objects")
- st.json(geojson)
-
- # Download button
- with open(output_path, 'r') as f:
- st.download_button(
- "Download GeoJSON",
- f.read(),
- file_name="annotations.geojson",
- mime="application/json"
- )
+    """Export results to GeoJSON"""
+    st.title(" Export Results")
+    
+    if 'analysis_results' not in st.session_state:
+        st.warning("No analysis results to export")
+        return
+    
+    results = st.session_state.analysis_results
+    
+    classification = st.text_input("Classification label", value="detected_cells")
+    
+    if st.button("Generate GeoJSON"):
+        with st.spinner("Converting to GeoJSON..."):
+            # Convert mask to polygons
+            polygons = mask_to_polygons(results['mask'])
+            
+            # Create GeoJSON
+            geojson = polygons_to_geojson(
+                polygons,
+                properties={"classification": classification}
+            )
+            
+            # Save to file
+            output_path = f"{Config.TEMP_DIR}/annotations.geojson"
+            save_geojson(geojson, output_path)
+            
+            st.success(f" Exported {len(polygons)} objects")
+            st.json(geojson)
+            
+            # Download button
+            with open(output_path, 'r') as f:
+                st.download_button(
+                    "Download GeoJSON",
+                    f.read(),
+                    file_name="annotations.geojson",
+                    mime="application/json"
+                )
 
 # Main app navigation
 def main():
- st.sidebar.title("Navigation")
-
- if not st.session_state.authenticated:
- authentication_page()
- else:
- page = st.sidebar.radio(
- "Go to",
- ["Slide Selection", "Analysis", "Export"]
- )
-
- if page == "Slide Selection":
- slide_selection_page()
- elif page == "Analysis":
- analysis_page()
- elif page == "Export":
- export_page()
+    st.sidebar.title("Navigation")
+    
+    if not st.session_state.authenticated:
+        authentication_page()
+    else:
+        page = st.sidebar.radio(
+            "Go to",
+            ["Slide Selection", "Analysis", "Export"]
+        )
+        
+        if page == "Slide Selection":
+            slide_selection_page()
+        elif page == "Analysis":
+            analysis_page()
+        elif page == "Export":
+            export_page()
 
 if __name__ == "__main__":
- main()
+    main()
 ```
 
 ### 5.2 Batch Processing
@@ -792,34 +792,34 @@ For processing multiple slides, implement batch functionality:
 
 ```python
 def batch_analysis(slide_ids: List[str], roi_config: Dict):
- """Process multiple slides in batch"""
- results = []
-
- for slide_id in slide_ids:
- try:
- # Download and process
- region_data = api.download_region(slide_id, **roi_config)
- image = load_image_region(region_data)
-
- # Run analysis
- preprocessed = preprocess_for_medsam(image)
- mask = predictor.predict(preprocessed)
-
- # Convert to GeoJSON
- polygons = mask_to_polygons(mask)
- geojson = polygons_to_geojson(polygons)
-
- results.append({
- 'slide_id': slide_id,
- 'geojson': geojson,
- 'object_count': len(polygons)
- })
-
- except Exception as e:
- st.error(f"Failed to process {slide_id}: {str(e)}")
- continue
-
- return results
+    """Process multiple slides in batch"""
+    results = []
+    
+    for slide_id in slide_ids:
+        try:
+            # Download and process
+            region_data = api.download_region(slide_id, **roi_config)
+            image = load_image_region(region_data)
+            
+            # Run analysis
+            preprocessed = preprocess_for_medsam(image)
+            mask = predictor.predict(preprocessed)
+            
+            # Convert to GeoJSON
+            polygons = mask_to_polygons(mask)
+            geojson = polygons_to_geojson(polygons)
+            
+            results.append({
+                'slide_id': slide_id,
+                'geojson': geojson,
+                'object_count': len(polygons)
+            })
+            
+        except Exception as e:
+            st.error(f"Failed to process {slide_id}: {str(e)}")
+            continue
+    
+    return results
 ```
 
 ### 5.3 Custom Model Integration
@@ -828,21 +828,21 @@ To integrate custom models instead of MedSAM:
 
 ```python
 class CustomModelPredictor:
- """Template for custom model integration"""
-
- def __init__(self, model_path: str, device: str = "cuda"):
- self.device = device
- self.model = self.load_custom_model(model_path)
-
- def load_custom_model(self, path: str):
- """Load your custom model"""
- # Implement your model loading logic
- pass
-
- def predict(self, image: np.ndarray) -> np.ndarray:
- """Run inference on image"""
- # Implement your inference logic
- pass
+    """Template for custom model integration"""
+    
+    def __init__(self, model_path: str, device: str = "cuda"):
+        self.device = device
+        self.model = self.load_custom_model(model_path)
+    
+    def load_custom_model(self, path: str):
+        """Load your custom model"""
+        # Implement your model loading logic
+        pass
+    
+    def predict(self, image: np.ndarray) -> np.ndarray:
+        """Run inference on image"""
+        # Implement your inference logic
+        pass
 ```
 
 ---
@@ -859,18 +859,18 @@ from utils.halo_api import HaloAPI
 
 @pytest.fixture
 def api():
- return HaloAPI("http://test-endpoint.com/graphql", "test-token")
+    return HaloAPI("http://test-endpoint.com/graphql", "test-token")
 
 def test_get_slides(api):
- """Test slide retrieval"""
- slides = asyncio.run(api.get_slides(limit=10))
- assert isinstance(slides, list)
+    """Test slide retrieval"""
+    slides = asyncio.run(api.get_slides(limit=10))
+    assert isinstance(slides, list)
 
 def test_download_region(api):
- """Test region download"""
- data = api.download_region("slide-123", 0, 0, 1024, 1024)
- assert isinstance(data, bytes)
- assert len(data) > 0
+    """Test region download"""
+    data = api.download_region("slide-123", 0, 0, 1024, 1024)
+    assert isinstance(data, bytes)
+    assert len(data) > 0
 ```
 
 ### 6.2 Integration Testing
@@ -879,27 +879,27 @@ Test the complete workflow:
 
 ```python
 def test_complete_workflow():
- """Test end-to-end workflow"""
- # 1. Authenticate
- api = HaloAPI(endpoint, token)
-
- # 2. Get slides
- slides = asyncio.run(api.get_slides())
- assert len(slides) > 0
-
- # 3. Download region
- region_data = api.download_region(slides[0]['id'], 0, 0, 1024, 1024)
- image = load_image_region(region_data)
-
- # 4. Run analysis
- predictor = MedSAMPredictor(checkpoint_path)
- mask = predictor.predict(preprocess_for_medsam(image))
-
- # 5. Export to GeoJSON
- polygons = mask_to_polygons(mask)
- geojson = polygons_to_geojson(polygons)
-
- assert len(geojson['features']) > 0
+    """Test end-to-end workflow"""
+    # 1. Authenticate
+    api = HaloAPI(endpoint, token)
+    
+    # 2. Get slides
+    slides = asyncio.run(api.get_slides())
+    assert len(slides) > 0
+    
+    # 3. Download region
+    region_data = api.download_region(slides[0]['id'], 0, 0, 1024, 1024)
+    image = load_image_region(region_data)
+    
+    # 4. Run analysis
+    predictor = MedSAMPredictor(checkpoint_path)
+    mask = predictor.predict(preprocess_for_medsam(image))
+    
+    # 5. Export to GeoJSON
+    polygons = mask_to_polygons(mask)
+    geojson = polygons_to_geojson(polygons)
+    
+    assert len(geojson['features']) > 0
 ```
 
 ### 6.3 Debugging Tips
@@ -907,30 +907,30 @@ def test_complete_workflow():
 **Common Issues**:
 
 1. **CUDA Out of Memory**
- ```python
- # Reduce batch size or image resolution
- torch.cuda.empty_cache()
- ```
+   ```python
+   # Reduce batch size or image resolution
+   torch.cuda.empty_cache()
+   ```
 
 2. **GraphQL Connection Errors**
- ```python
- # Add retry logic
- from tenacity import retry, stop_after_attempt
-
- @retry(stop=stop_after_attempt(3))
- async def get_slides_with_retry(api):
- return await api.get_slides()
- ```
+   ```python
+   # Add retry logic
+   from tenacity import retry, stop_after_attempt
+   
+   @retry(stop=stop_after_attempt(3))
+   async def get_slides_with_retry(api):
+       return await api.get_slides()
+   ```
 
 3. **Image Loading Failures**
- ```python
- # Add error handling
- try:
- image = load_image_region(data)
- except Exception as e:
- logger.error(f"Failed to load image: {str(e)}")
- # Fallback logic
- ```
+   ```python
+   # Add error handling
+   try:
+       image = load_image_region(data)
+   except Exception as e:
+       logger.error(f"Failed to load image: {str(e)}")
+       # Fallback logic
+   ```
 
 ---
 
@@ -961,8 +961,9 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
- openslide-tools \
- libopens
+    openslide-tools \
+    libopens
+
 
 ## 4. Core Code Implementation
 
@@ -987,7 +988,7 @@ from config import Config
 Config.validate()
 
 # Access settings
-device = Config.DEVICE # 'cuda' or 'cpu'
+device = Config.DEVICE  # 'cuda' or 'cpu'
 checkpoint = Config.MEDSAM_CHECKPOINT
 temp_dir = Config.TEMP_DIR
 
@@ -1020,19 +1021,19 @@ api = HaloAPI(endpoint="https://halo.example.com/graphql", token="your_token")
 
 # Test connection
 if asyncio.run(api.test_connection()):
- print("Connected successfully")
+    print("Connected successfully")
 
 # Fetch slides
 slides = asyncio.run(api.get_slides(limit=100))
 for slide in slides:
- print(f"{slide['name']}: {slide['width']}x{slide['height']}")
+    print(f"{slide['name']}: {slide['width']}x{slide['height']}")
 
 # Download region
 region_bytes = api.download_region(
- slide_id=slides[0]['id'],
- x=1000, y=2000,
- width=2048, height=2048,
- level=0
+    slide_id=slides[0]['id'],
+    x=1000, y=2000,
+    width=2048, height=2048,
+    level=0
 )
 ```
 
@@ -1096,21 +1097,21 @@ import numpy as np
 
 # Initialize predictor (load model once)
 predictor = MedSAMPredictor(
- checkpoint_path="./models/medsam_vit_b.pth",
- model_type="vit_b",
- device="cuda" # or "cpu"
+    checkpoint_path="./models/medsam_vit_b.pth",
+    model_type="vit_b",
+    device="cuda"  # or "cpu"
 )
 
 # Automatic segmentation (uses center point)
 mask = predictor.predict(preprocessed_image)
 
 # With point prompts
-points = np.array([[512, 512], [600, 600]]) # (x, y) coordinates
-labels = np.array([1, 1]) # 1 = foreground, 0 = background
+points = np.array([[512, 512], [600, 600]])  # (x, y) coordinates
+labels = np.array([1, 1])  # 1 = foreground, 0 = background
 mask = predictor.predict_with_points(image, points, labels)
 
 # With bounding box
-box = np.array([100, 100, 500, 500]) # (x1, y1, x2, y2)
+box = np.array([100, 100, 500, 500])  # (x1, y1, x2, y2)
 mask = predictor.predict_with_box(image, box)
 ```
 
@@ -1139,16 +1140,16 @@ from utils.geojson_utils import *
 
 # Convert mask to polygons
 polygons = mask_to_polygons(
- mask,
- min_area=100 # Filter small objects
+    mask,
+    min_area=100  # Filter small objects
 )
 
 # Create GeoJSON with metadata
 geojson = polygons_to_geojson(
- polygons,
- properties={"classification": "tumor", "confidence": 0.95},
- simplify=True,
- tolerance=1.0 # Simplification tolerance
+    polygons,
+    properties={"classification": "tumor", "confidence": 0.95},
+    simplify=True,
+    tolerance=1.0  # Simplification tolerance
 )
 
 # Save to file
@@ -1170,50 +1171,50 @@ For high-throughput analysis, the application can be extended to process multipl
 
 ```python
 def batch_analyze_slides(api, predictor, slide_ids, roi_configs):
- """
- Process multiple slides in batch mode.
-
- Args:
- api: HaloAPI instance
- predictor: MedSAMPredictor instance
- slide_ids: List of slide IDs to process
- roi_configs: List of ROI dictionaries (x, y, width, height)
-
- Returns:
- List of results with GeoJSON annotations
- """
- results = []
-
- for slide_id in slide_ids:
- for roi in roi_configs:
- try:
- # Download region
- data = api.download_region(slide_id, **roi)
- image = load_image_from_bytes(data)
-
- # Preprocess
- prep, meta = preprocess_for_medsam(image)
-
- # Analyze
- mask = predictor.predict(prep)
- final = postprocess_mask(mask, meta)
-
- # Convert to GeoJSON
- polygons = mask_to_polygons(final, min_area=100)
- geojson = polygons_to_geojson(polygons)
-
- results.append({
- 'slide_id': slide_id,
- 'roi': roi,
- 'geojson': geojson,
- 'stats': compute_mask_statistics(final)
- })
-
- except Exception as e:
- logger.error(f"Failed to process {slide_id}: {e}")
- continue
-
- return results
+    """
+    Process multiple slides in batch mode.
+    
+    Args:
+        api: HaloAPI instance
+        predictor: MedSAMPredictor instance
+        slide_ids: List of slide IDs to process
+        roi_configs: List of ROI dictionaries (x, y, width, height)
+    
+    Returns:
+        List of results with GeoJSON annotations
+    """
+    results = []
+    
+    for slide_id in slide_ids:
+        for roi in roi_configs:
+            try:
+                # Download region
+                data = api.download_region(slide_id, **roi)
+                image = load_image_from_bytes(data)
+                
+                # Preprocess
+                prep, meta = preprocess_for_medsam(image)
+                
+                # Analyze
+                mask = predictor.predict(prep)
+                final = postprocess_mask(mask, meta)
+                
+                # Convert to GeoJSON
+                polygons = mask_to_polygons(final, min_area=100)
+                geojson = polygons_to_geojson(polygons)
+                
+                results.append({
+                    'slide_id': slide_id,
+                    'roi': roi,
+                    'geojson': geojson,
+                    'stats': compute_mask_statistics(final)
+                })
+                
+            except Exception as e:
+                logger.error(f"Failed to process {slide_id}: {e}")
+                continue
+    
+    return results
 ```
 
 ### 5.2 Custom Model Integration
@@ -1222,27 +1223,27 @@ To integrate a different segmentation model, create a custom predictor class:
 
 ```python
 class CustomModelPredictor:
- """Template for custom model integration"""
-
- def __init__(self, model_path, device="cuda"):
- self.device = device
- self.model = self.load_model(model_path)
- self.model.eval()
-
- def load_model(self, path):
- """Load your custom model"""
- # Implement model loading logic
- model = YourModelClass()
- model.load_state_dict(torch.load(path))
- model.to(self.device)
- return model
-
- def predict(self, image):
- """Run inference"""
- # Implement inference logic
- with torch.no_grad():
- output = self.model(image)
- return output.cpu().numpy()
+    """Template for custom model integration"""
+    
+    def __init__(self, model_path, device="cuda"):
+        self.device = device
+        self.model = self.load_model(model_path)
+        self.model.eval()
+    
+    def load_model(self, path):
+        """Load your custom model"""
+        # Implement model loading logic
+        model = YourModelClass()
+        model.load_state_dict(torch.load(path))
+        model.to(self.device)
+        return model
+    
+    def predict(self, image):
+        """Run inference"""
+        # Implement inference logic
+        with torch.no_grad():
+            output = self.model(image)
+        return output.cpu().numpy()
 ```
 
 ### 5.3 Interactive Segmentation with Prompts
@@ -1254,31 +1255,31 @@ import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 
 def interactive_segmentation(image, predictor):
- """Allow user to draw prompts on image"""
-
- # Display image with drawing canvas
- canvas_result = st_canvas(
- fill_color="rgba(255, 0, 0, 0.3)",
- stroke_width=3,
- stroke_color="#FF0000",
- background_image=Image.fromarray(image),
- drawing_mode="point",
- key="canvas"
- )
-
- if canvas_result.json_data is not None:
- # Extract point coordinates from canvas
- points = []
- for obj in canvas_result.json_data["objects"]:
- if obj["type"] == "circle":
- points.append([obj["left"], obj["top"]])
-
- if len(points) > 0:
- # Run segmentation with user-provided points
- points = np.array(points)
- labels = np.ones(len(points)) # All foreground
- mask = predictor.predict_with_points(image, points, labels)
- st.image(mask, caption="Segmentation Result")
+    """Allow user to draw prompts on image"""
+    
+    # Display image with drawing canvas
+    canvas_result = st_canvas(
+        fill_color="rgba(255, 0, 0, 0.3)",
+        stroke_width=3,
+        stroke_color="#FF0000",
+        background_image=Image.fromarray(image),
+        drawing_mode="point",
+        key="canvas"
+    )
+    
+    if canvas_result.json_data is not None:
+        # Extract point coordinates from canvas
+        points = []
+        for obj in canvas_result.json_data["objects"]:
+            if obj["type"] == "circle":
+                points.append([obj["left"], obj["top"]])
+        
+        if len(points) > 0:
+            # Run segmentation with user-provided points
+            points = np.array(points)
+            labels = np.ones(len(points))  # All foreground
+            mask = predictor.predict_with_points(image, points, labels)
+            st.image(mask, caption="Segmentation Result")
 ```
 
 ### 5.4 Multi-Scale Analysis
@@ -1287,33 +1288,33 @@ For analyzing structures at different scales:
 
 ```python
 def multiscale_analysis(api, predictor, slide_id, center_x, center_y):
- """
- Analyze the same region at multiple magnifications.
- """
- scales = [0, 1, 2] # Pyramid levels
- results = []
-
- for level in scales:
- # Download at different level
- data = api.download_region(
- slide_id, center_x, center_y,
- width=1024, height=1024,
- level=level
- )
-
- # Analyze
- image = load_image_from_bytes(data)
- prep, meta = preprocess_for_medsam(image)
- mask = predictor.predict(prep)
- final = postprocess_mask(mask, meta)
-
- results.append({
- 'level': level,
- 'mask': final,
- 'stats': compute_mask_statistics(final)
- })
-
- return results
+    """
+    Analyze the same region at multiple magnifications.
+    """
+    scales = [0, 1, 2]  # Pyramid levels
+    results = []
+    
+    for level in scales:
+        # Download at different level
+        data = api.download_region(
+            slide_id, center_x, center_y,
+            width=1024, height=1024,
+            level=level
+        )
+        
+        # Analyze
+        image = load_image_from_bytes(data)
+        prep, meta = preprocess_for_medsam(image)
+        mask = predictor.predict(prep)
+        final = postprocess_mask(mask, meta)
+        
+        results.append({
+            'level': level,
+            'mask': final,
+            'stats': compute_mask_statistics(final)
+        })
+    
+    return results
 ```
 
 ---
@@ -1331,32 +1332,32 @@ import numpy as np
 from utils.image_proc import *
 
 def test_preprocess_for_medsam():
- # Create test image
- image = np.random.randint(0, 255, (512, 768, 3), dtype=np.uint8)
-
- # Preprocess
- preprocessed, metadata = preprocess_for_medsam(image, target_size=1024)
-
- # Verify output shape
- assert preprocessed.shape == (1024, 1024, 3)
- assert 'original_shape' in metadata
- assert metadata['original_shape'] == (512, 768)
+    # Create test image
+    image = np.random.randint(0, 255, (512, 768, 3), dtype=np.uint8)
+    
+    # Preprocess
+    preprocessed, metadata = preprocess_for_medsam(image, target_size=1024)
+    
+    # Verify output shape
+    assert preprocessed.shape == (1024, 1024, 3)
+    assert 'original_shape' in metadata
+    assert metadata['original_shape'] == (512, 768)
 
 def test_postprocess_mask():
- # Create test mask and metadata
- mask = np.ones((1024, 1024), dtype=bool)
- metadata = {
- 'original_shape': (512, 768),
- 'resized_shape': (512, 768),
- 'padding': (256, 256, 128, 128),
- 'target_size': 1024
- }
-
- # Postprocess
- final = postprocess_mask(mask, metadata)
-
- # Verify output shape matches original
- assert final.shape == (512, 768)
+    # Create test mask and metadata
+    mask = np.ones((1024, 1024), dtype=bool)
+    metadata = {
+        'original_shape': (512, 768),
+        'resized_shape': (512, 768),
+        'padding': (256, 256, 128, 128),
+        'target_size': 1024
+    }
+    
+    # Postprocess
+    final = postprocess_mask(mask, metadata)
+    
+    # Verify output shape matches original
+    assert final.shape == (512, 768)
 ```
 
 ### 6.2 Integration Testing
@@ -1366,33 +1367,33 @@ Test the complete workflow:
 ```python
 # tests/test_integration.py
 def test_end_to_end_workflow():
- """Test complete analysis pipeline"""
-
- # Setup
- api = HaloAPI(test_endpoint, test_token)
- predictor = MedSAMPredictor(checkpoint_path, device="cpu")
-
- # Get slides
- slides = asyncio.run(api.get_slides(limit=1))
- assert len(slides) > 0
-
- # Download region
- data = api.download_region(slides[0]['id'], 0, 0, 512, 512)
- assert len(data) > 0
-
- # Process
- image = load_image_from_bytes(data)
- prep, meta = preprocess_for_medsam(image)
- mask = predictor.predict(prep)
- final = postprocess_mask(mask, meta)
-
- # Export
- polygons = mask_to_polygons(final)
- geojson = polygons_to_geojson(polygons)
-
- # Verify
- assert 'features' in geojson
- assert len(geojson['features']) > 0
+    """Test complete analysis pipeline"""
+    
+    # Setup
+    api = HaloAPI(test_endpoint, test_token)
+    predictor = MedSAMPredictor(checkpoint_path, device="cpu")
+    
+    # Get slides
+    slides = asyncio.run(api.get_slides(limit=1))
+    assert len(slides) > 0
+    
+    # Download region
+    data = api.download_region(slides[0]['id'], 0, 0, 512, 512)
+    assert len(data) > 0
+    
+    # Process
+    image = load_image_from_bytes(data)
+    prep, meta = preprocess_for_medsam(image)
+    mask = predictor.predict(prep)
+    final = postprocess_mask(mask, meta)
+    
+    # Export
+    polygons = mask_to_polygons(final)
+    geojson = polygons_to_geojson(polygons)
+    
+    # Verify
+    assert 'features' in geojson
+    assert len(geojson['features']) > 0
 ```
 
 ### 6.3 Debugging Common Issues
@@ -1417,7 +1418,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
 async def get_slides_with_retry(api):
- return await api.get_slides()
+    return await api.get_slides()
 ```
 
 **Issue: Slow Performance**
@@ -1435,7 +1436,7 @@ mask = predictor.predict(image)
 profiler.disable()
 stats = pstats.Stats(profiler)
 stats.sort_stats('cumulative')
-stats.print_stats(10) # Top 10 slowest functions
+stats.print_stats(10)  # Top 10 slowest functions
 ```
 
 ---
@@ -1448,9 +1449,9 @@ For development and testing:
 
 ```bash
 # Activate virtual environment
-source venv/bin/activate # macOS/Linux
+source venv/bin/activate  # macOS/Linux
 # or
-venv\Scripts\activate # Windows
+venv\Scripts\activate  # Windows
 
 # Run application
 streamlit run app.py --server.port 8501
@@ -1469,10 +1470,10 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
- openslide-tools \
- libopensli de-dev \
- wget \
- && rm -rf /var/lib/apt/lists/*
+    openslide-tools \
+    libopensli de-dev \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy application files
 COPY requirements.txt .
@@ -1482,8 +1483,8 @@ COPY . .
 
 # Download model weights
 RUN mkdir -p models && \
- wget -O models/medsam_vit_b.pth \
- https://zenodo.org/records/10689643/files/medsam_vit_b.pth?download=1
+    wget -O models/medsam_vit_b.pth \
+    https://zenodo.org/records/10689643/files/medsam_vit_b.pth?download=1
 
 # Expose Streamlit port
 EXPOSE 8501
@@ -1499,9 +1500,9 @@ docker build -t xhalopathanalyzer .
 
 # Run container
 docker run -p 8501:8501 \
- -e HALO_API_ENDPOINT=https://your-halo.com/graphql \
- -e HALO_API_TOKEN=your_token \
- xhalopathanalyzer
+    -e HALO_API_ENDPOINT=https://your-halo.com/graphql \
+    -e HALO_API_TOKEN=your_token \
+    xhalopathanalyzer
 ```
 
 ### 7.3 Cloud Deployment (AWS, Azure, GCP)
@@ -1517,10 +1518,10 @@ docker push <account>.dkr.ecr.<region>.amazonaws.com/xhalopathanalyzer
 
 # Deploy to ECS
 aws ecs create-service \
- --cluster my-cluster \
- --service-name xhalopathanalyzer \
- --task-definition xhalopathanalyzer:1 \
- --desired-count 1
+    --cluster my-cluster \
+    --service-name xhalopathanalyzer \
+    --task-definition xhalopathanalyzer:1 \
+    --desired-count 1
 ```
 
 ---
@@ -1580,13 +1581,13 @@ Config.validate()
 
 # Connect to Halo
 api = HaloAPI(
- endpoint=Config.HALO_API_ENDPOINT,
- token=Config.HALO_API_TOKEN
+    endpoint=Config.HALO_API_ENDPOINT,
+    token=Config.HALO_API_TOKEN
 )
 
 # Test connection
 if asyncio.run(api.test_connection()):
- print("Connected to Halo")
+    print(" Connected to Halo")
 ```
 
 ### Step 2: Browse and Select Slides
@@ -1610,17 +1611,17 @@ print(f"MPP: {selected_slide.get('mpp', 'N/A')}")
 ```python
 # Define ROI (top-left 2048x2048 region)
 roi = {
- 'x': 0,
- 'y': 0,
- 'width': 2048,
- 'height': 2048,
- 'level': 0
+    'x': 0,
+    'y': 0,
+    'width': 2048,
+    'height': 2048,
+    'level': 0
 }
 
 # Download region
 region_data = api.download_region(
- slide_id=selected_slide['id'],
- **roi
+    slide_id=selected_slide['id'],
+    **roi
 )
 print(f"Downloaded {len(region_data)} bytes")
 ```
@@ -1637,9 +1638,9 @@ print(f"Image shape: {image.shape}")
 
 # Initialize predictor
 predictor = MedSAMPredictor(
- checkpoint_path=Config.MEDSAM_CHECKPOINT,
- model_type=Config.MODEL_TYPE,
- device=Config.DEVICE
+    checkpoint_path=Config.MEDSAM_CHECKPOINT,
+    model_type=Config.MODEL_TYPE,
+    device=Config.DEVICE
 )
 
 # Preprocess
@@ -1657,7 +1658,7 @@ print(f"Mask shape: {final_mask.shape}")
 stats = compute_mask_statistics(final_mask, mpp=selected_slide.get('mpp'))
 print(f"Coverage: {stats['coverage_percent']:.2f}%")
 if 'area_mm2' in stats:
- print(f"Area: {stats['area_mm2']:.4f} mm²")
+    print(f"Area: {stats['area_mm2']:.4f} mm²")
 ```
 
 ### Step 5: Visualize Results
@@ -1696,21 +1697,21 @@ from utils.geojson_utils import *
 
 # Convert mask to polygons
 polygons = mask_to_polygons(
- final_mask,
- min_area=Config.MIN_POLYGON_AREA
+    final_mask,
+    min_area=Config.MIN_POLYGON_AREA
 )
 print(f"Extracted {len(polygons)} polygons")
 
 # Create GeoJSON
 geojson = polygons_to_geojson(
- polygons,
- properties={
- "classification": "tumor",
- "slide_id": selected_slide['id'],
- "roi": roi
- },
- simplify=True,
- tolerance=Config.SIMPLIFY_TOLERANCE
+    polygons,
+    properties={
+        "classification": "tumor",
+        "slide_id": selected_slide['id'],
+        "roi": roi
+    },
+    simplify=True,
+    tolerance=Config.SIMPLIFY_TOLERANCE
 )
 
 # Save to file
@@ -1724,11 +1725,11 @@ print(f"Exported GeoJSON to {output_path}")
 ```python
 # Upload annotations back to Halo
 annotation_result = asyncio.run(
- api.upload_annotations(
- slide_id=selected_slide['id'],
- geojson=geojson,
- name="MedSAM Segmentation"
- )
+    api.upload_annotations(
+        slide_id=selected_slide['id'],
+        geojson=geojson,
+        name="MedSAM Segmentation"
+    )
 )
 
 print(f"Uploaded annotations: {annotation_result['id']}")
@@ -1750,38 +1751,38 @@ from utils.ml_models import MedSAMPredictor
 from utils.geojson_utils import *
 
 async def main():
- # 1. Setup
- Config.validate()
- api = HaloAPI(Config.HALO_API_ENDPOINT, Config.HALO_API_TOKEN)
-
- # 2. Get slides
- slides = await api.get_slides(limit=10)
- selected = slides[0]
-
- # 3. Download region
- data = api.download_region(selected['id'], 0, 0, 1024, 1024)
- image = load_image_from_bytes(data)
-
- # 4. Analyze
- predictor = MedSAMPredictor(Config.MEDSAM_CHECKPOINT, device=Config.DEVICE)
- prep, meta = preprocess_for_medsam(image)
- mask = predictor.predict(prep)
- final = postprocess_mask(mask, meta)
-
- # 5. Export
- polygons = mask_to_polygons(final)
- geojson = polygons_to_geojson(polygons)
- save_geojson(geojson, "output.geojson")
-
- # 6. Upload
- result = await api.upload_annotations(selected['id'], geojson)
-
- print(f"Complete! Processed {selected['name']}")
- print(f" Objects: {len(polygons)}")
- print(f" Annotation ID: {result['id']}")
+    # 1. Setup
+    Config.validate()
+    api = HaloAPI(Config.HALO_API_ENDPOINT, Config.HALO_API_TOKEN)
+    
+    # 2. Get slides
+    slides = await api.get_slides(limit=10)
+    selected = slides[0]
+    
+    # 3. Download region
+    data = api.download_region(selected['id'], 0, 0, 1024, 1024)
+    image = load_image_from_bytes(data)
+    
+    # 4. Analyze
+    predictor = MedSAMPredictor(Config.MEDSAM_CHECKPOINT, device=Config.DEVICE)
+    prep, meta = preprocess_for_medsam(image)
+    mask = predictor.predict(prep)
+    final = postprocess_mask(mask, meta)
+    
+    # 5. Export
+    polygons = mask_to_polygons(final)
+    geojson = polygons_to_geojson(polygons)
+    save_geojson(geojson, "output.geojson")
+    
+    # 6. Upload
+    result = await api.upload_annotations(selected['id'], geojson)
+    
+    print(f" Complete! Processed {selected['name']}")
+    print(f"   Objects: {len(polygons)}")
+    print(f"   Annotation ID: {result['id']}")
 
 if __name__ == "__main__":
- asyncio.run(main())
+    asyncio.run(main())
 ```
 
 ---
