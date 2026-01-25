@@ -54,10 +54,10 @@ def run_smoke_test(verbose: bool = False) -> dict:
         print("Step 1: Initializing Halo Link client...")
         try:
             client = HaloLinkClient()
-            print(f"✓ Client initialized with base_url: {client.base_url}")
+            print(f" Client initialized with base_url: {client.base_url}")
             results["steps"]["client_init"] = {"success": True}
         except Exception as e:
-            print(f"✗ Failed to initialize client: {e}")
+            print(f" Failed to initialize client: {e}")
             results["steps"]["client_init"] = {"success": False, "error": str(e)}
             results["error"] = f"Client initialization failed: {e}"
             return results
@@ -69,14 +69,14 @@ def run_smoke_test(verbose: bool = False) -> dict:
         try:
             config = client._get_oidc_configuration()
             token_endpoint = config.get("token_endpoint", "N/A")
-            print(f"✓ OIDC discovery successful")
+            print(f" OIDC discovery successful")
             print(f"  Token endpoint: {token_endpoint}")
             results["steps"]["oidc_discovery"] = {
                 "success": True,
                 "token_endpoint": token_endpoint
             }
         except Exception as e:
-            print(f"✗ OIDC discovery failed: {e}")
+            print(f" OIDC discovery failed: {e}")
             results["steps"]["oidc_discovery"] = {"success": False, "error": str(e)}
             results["error"] = f"OIDC discovery failed: {e}"
             return results
@@ -100,14 +100,14 @@ def run_smoke_test(verbose: bool = False) -> dict:
                 token = client.get_token()
                 # Don't log the actual token
                 token_preview = f"{token[:10]}..." if token and len(token) > 10 else "N/A"
-                print(f"✓ Token retrieved successfully")
+                print(f" Token retrieved successfully")
                 print(f"  Token preview: {token_preview}")
                 results["steps"]["token_retrieval"] = {
                     "success": True,
                     "has_token": bool(token)
                 }
             except Exception as e:
-                print(f"✗ Token retrieval failed: {e}")
+                print(f" Token retrieval failed: {e}")
                 results["steps"]["token_retrieval"] = {"success": False, "error": str(e)}
                 # Don't fail the whole test if token retrieval fails
                 # (might be testing without auth)
@@ -123,21 +123,21 @@ def run_smoke_test(verbose: bool = False) -> dict:
         
         try:
             result = client.execute_graphql(test_query)
-            print(f"✓ GraphQL query executed successfully")
+            print(f" GraphQL query executed successfully")
             print(f"  Response: {result}")
             results["steps"]["graphql_query"] = {
                 "success": True,
                 "result": result
             }
         except Exception as e:
-            print(f"✗ GraphQL query failed: {e}")
+            print(f" GraphQL query failed: {e}")
             results["steps"]["graphql_query"] = {"success": False, "error": str(e)}
             results["error"] = f"GraphQL query failed: {e}"
             return results
         
         print()
         print("=" * 60)
-        print("✓ All smoke tests passed!")
+        print(" All smoke tests passed!")
         print("=" * 60)
         
         results["success"] = True
@@ -145,7 +145,7 @@ def run_smoke_test(verbose: bool = False) -> dict:
     except Exception as e:
         print()
         print("=" * 60)
-        print(f"✗ Smoke test failed with unexpected error: {e}")
+        print(f" Smoke test failed with unexpected error: {e}")
         print("=" * 60)
         results["error"] = str(e)
         logger.exception("Unexpected error during smoke test")

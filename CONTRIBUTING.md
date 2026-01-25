@@ -15,62 +15,62 @@ Thank you for your interest in contributing to XHalo Path Analyzer! This documen
 
 1. Check if the bug has already been reported in [Issues](https://github.com/eisascience/XHaloPathAnalyzer/issues)
 2. If not, create a new issue with:
-   - Clear title and description
-   - Steps to reproduce
-   - Expected vs actual behavior
-   - Environment details (OS, Python version, etc.)
-   - Screenshots if applicable
+ - Clear title and description
+ - Steps to reproduce
+ - Expected vs actual behavior
+ - Environment details (OS, Python version, etc.)
+ - Screenshots if applicable
 
 ### Suggesting Features
 
 1. Check existing issues and discussions
 2. Create a new issue with:
-   - Clear use case description
-   - Expected behavior
-   - Why this feature would be useful
-   - Possible implementation approach (optional)
+ - Clear use case description
+ - Expected behavior
+ - Why this feature would be useful
+ - Possible implementation approach (optional)
 
 ### Contributing Code
 
 1. **Fork the repository**
 
 2. **Create a feature branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
+ ```bash
+ git checkout -b feature/your-feature-name
+ ```
 
 3. **Make your changes**
-   - Follow the coding standards (see below)
-   - Add tests for new functionality
-   - Update documentation as needed
+ - Follow the coding standards (see below)
+ - Add tests for new functionality
+ - Update documentation as needed
 
 4. **Test your changes**
-   ```bash
-   pytest tests/ -v
-   python examples/basic_usage.py
-   ```
+ ```bash
+ pytest tests/ -v
+ python examples/basic_usage.py
+ ```
 
 5. **Commit your changes**
-   ```bash
-   git commit -m "Add feature: your feature description"
-   ```
-   
-   Use conventional commits:
-   - `feat:` for new features
-   - `fix:` for bug fixes
-   - `docs:` for documentation changes
-   - `test:` for test additions/changes
-   - `refactor:` for code refactoring
+ ```bash
+ git commit -m "Add feature: your feature description"
+ ```
+
+ Use conventional commits:
+ - `feat:` for new features
+ - `fix:` for bug fixes
+ - `docs:` for documentation changes
+ - `test:` for test additions/changes
+ - `refactor:` for code refactoring
 
 6. **Push to your fork**
-   ```bash
-   git push origin feature/your-feature-name
-   ```
+ ```bash
+ git push origin feature/your-feature-name
+ ```
 
 7. **Create a Pull Request**
-   - Provide a clear description
-   - Reference related issues
-   - Wait for review
+ - Provide a clear description
+ - Reference related issues
+ - Wait for review
 
 ## Coding Standards
 
@@ -85,20 +85,20 @@ Thank you for your interest in contributing to XHalo Path Analyzer! This documen
 
 ```python
 def function_name(param1: Type1, param2: Type2) -> ReturnType:
-    """
-    Brief description of function
-    
-    Args:
-        param1: Description of param1
-        param2: Description of param2
-        
-    Returns:
-        Description of return value
-        
-    Raises:
-        ExceptionType: When this exception is raised
-    """
-    pass
+ """
+ Brief description of function
+
+ Args:
+ param1: Description of param1
+ param2: Description of param2
+
+ Returns:
+ Description of return value
+
+ Raises:
+ ExceptionType: When this exception is raised
+ """
+ pass
 ```
 
 ### Code Organization
@@ -118,71 +118,71 @@ def function_name(param1: Type1, param2: Type2) -> ReturnType:
 Example test:
 ```python
 def test_function_name():
-    """Test description"""
-    # Arrange
-    input_data = create_test_data()
-    
-    # Act
-    result = function_under_test(input_data)
-    
-    # Assert
-    assert result == expected_output
+ """Test description"""
+ # Arrange
+ input_data = create_test_data()
+
+ # Act
+ result = function_under_test(input_data)
+
+ # Assert
+ assert result == expected_output
 ```
 
 ## Development Setup
 
 1. **Clone and install in development mode**
 
-   **Using uv (Recommended for Mac M2/ARM):**
-   ```bash
-   git clone https://github.com/eisascience/XHaloPathAnalyzer.git
-   cd XHaloPathAnalyzer
-   
-   # Install uv if not already installed
-   curl -LsSf https://astral.sh/uv/install.sh | sh  # or: brew install uv
-   
-   # Create virtual environment and install
-   uv venv
-   source .venv/bin/activate
-   uv pip install -e ".[dev]"
-   ```
-   
-   **Using pip:**
-   ```bash
-   git clone https://github.com/eisascience/XHaloPathAnalyzer.git
-   cd XHaloPathAnalyzer
-   pip install -e ".[dev]"
-   ```
+ **Using uv (Recommended for Mac M2/ARM):**
+ ```bash
+ git clone https://github.com/eisascience/XHaloPathAnalyzer.git
+ cd XHaloPathAnalyzer
+
+ # Install uv if not already installed
+ curl -LsSf https://astral.sh/uv/install.sh | sh # or: brew install uv
+
+ # Create virtual environment and install
+ uv venv
+ source .venv/bin/activate
+ uv pip install -e ".[dev]"
+ ```
+
+ **Using pip:**
+ ```bash
+ git clone https://github.com/eisascience/XHaloPathAnalyzer.git
+ cd XHaloPathAnalyzer
+ pip install -e ".[dev]"
+ ```
 
 2. **Install pre-commit hooks (optional)**
-   ```bash
-   # Using uv
-   uv pip install pre-commit
-   pre-commit install
-   
-   # Or using pip
-   pip install pre-commit
-   pre-commit install
-   ```
+ ```bash
+ # Using uv
+ uv pip install pre-commit
+ pre-commit install
+
+ # Or using pip
+ pip install pre-commit
+ pre-commit install
+ ```
 
 3. **Run tests**
-   ```bash
-   pytest tests/ -v --cov=xhalo
-   ```
+ ```bash
+ pytest tests/ -v --cov=xhalo
+ ```
 
 ## Project Structure
 
 ```
 XHaloPathAnalyzer/
-├── xhalo/              # Main package
-│   ├── api/           # Halo API integration
-│   ├── ml/            # ML models
-│   ├── ui/            # UI components
-│   └── utils/         # Utility functions
-├── tests/             # Unit tests
-├── examples/          # Example scripts
-├── docs/              # Documentation
-└── app.py            # Main Streamlit app
+├── xhalo/ # Main package
+│ ├── api/ # Halo API integration
+│ ├── ml/ # ML models
+│ ├── ui/ # UI components
+│ └── utils/ # Utility functions
+├── tests/ # Unit tests
+├── examples/ # Example scripts
+├── docs/ # Documentation
+└── app.py # Main Streamlit app
 ```
 
 ## Documentation
@@ -231,4 +231,4 @@ By contributing, you agree that your contributions will be licensed under the MI
 
 ---
 
-Thank you for contributing to XHalo Path Analyzer! 🎉
+Thank you for contributing to XHalo Path Analyzer! 

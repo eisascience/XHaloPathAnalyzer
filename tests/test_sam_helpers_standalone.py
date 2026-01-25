@@ -112,7 +112,7 @@ def run_tests():
     print(f"  Output shape: {result.shape}, dtype: {result.dtype}, range: [{result.min()}, {result.max()}]")
     assert result.dtype == np.uint8, f"Expected uint8, got {result.dtype}"
     assert result.shape == (100, 100, 3), f"Expected (100, 100, 3), got {result.shape}"
-    print("  ✓ PASSED")
+    print("   PASSED")
     
     # Test 2: _ensure_rgb_uint8 with uint8
     print("\nTest 2: uint8 passthrough")
@@ -121,7 +121,7 @@ def run_tests():
     print(f"  Output shape: {result.shape}, dtype: {result.dtype}")
     assert result.dtype == np.uint8
     assert np.array_equal(result, image)
-    print("  ✓ PASSED")
+    print("   PASSED")
     
     # Test 3: Grayscale to RGB
     print("\nTest 3: Grayscale to RGB")
@@ -130,7 +130,7 @@ def run_tests():
     print(f"  Input shape: {gray.shape}, Output shape: {result.shape}")
     assert result.shape == (100, 100, 3)
     assert np.array_equal(result[:,:,0], result[:,:,1])
-    print("  ✓ PASSED")
+    print("   PASSED")
     
     # Test 4: _compute_tissue_bbox
     print("\nTest 4: Tissue bbox detection")
@@ -145,7 +145,7 @@ def run_tests():
     box_area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
     print(f"  Box area: {box_area} pixels")
     assert box_area > 5000, f"Box area too small: {box_area}"
-    print("  ✓ PASSED")
+    print("   PASSED")
     
     # Test 5: Empty image (fallback)
     print("\nTest 5: Empty image fallback")
@@ -153,7 +153,7 @@ def run_tests():
     bbox = _compute_tissue_bbox(image)
     print(f"  Detected bbox: {bbox}")
     assert np.array_equal(bbox, [0, 0, 99, 99]), f"Expected [0, 0, 99, 99], got {bbox}"
-    print("  ✓ PASSED")
+    print("   PASSED")
     
     # Test 6: Large tissue region
     print("\nTest 6: Large tissue region")
@@ -166,10 +166,10 @@ def run_tests():
     img_area = 300 * 300
     print(f"  Box covers {100*box_area/img_area:.1f}% of image")
     assert box_area > 0.5 * img_area, "Should detect large tissue region"
-    print("  ✓ PASSED")
+    print("   PASSED")
     
     print("\n" + "=" * 60)
-    print("✅ All tests passed!")
+    print(" All tests passed!")
     print("=" * 60)
 
 

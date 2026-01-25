@@ -22,9 +22,9 @@ def validate_app_structure():
     
     try:
         tree = ast.parse(code)
-        print("✓ app.py syntax is valid")
+        print(" app.py syntax is valid")
     except SyntaxError as e:
-        print(f"✗ Syntax error in app.py: {e}")
+        print(f" Syntax error in app.py: {e}")
         return False
     
     # Check for required functions
@@ -44,44 +44,44 @@ def validate_app_structure():
     all_found = True
     for func in required_functions:
         if func in functions:
-            print(f"✓ Function '{func}' found")
+            print(f" Function '{func}' found")
         else:
-            print(f"✗ Function '{func}' MISSING")
+            print(f" Function '{func}' MISSING")
             all_found = False
     
     # Check for session state variables
     print("\nChecking session state initialization...")
     if "'local_mode'" in code:
-        print("✓ 'local_mode' session state added")
+        print(" 'local_mode' session state added")
     else:
-        print("✗ 'local_mode' session state MISSING")
+        print(" 'local_mode' session state MISSING")
         all_found = False
     
     if "'uploaded_images'" in code:
-        print("✓ 'uploaded_images' session state added")
+        print(" 'uploaded_images' session state added")
     else:
-        print("✗ 'uploaded_images' session state MISSING")
+        print(" 'uploaded_images' session state MISSING")
         all_found = False
     
     if "'current_image_name'" in code:
-        print("✓ 'current_image_name' session state added")
+        print(" 'current_image_name' session state added")
     else:
-        print("✗ 'current_image_name' session state MISSING")
+        print(" 'current_image_name' session state MISSING")
         all_found = False
     
     # Check for file uploader
     print("\nChecking image upload functionality...")
     if "st.file_uploader" in code:
-        print("✓ File uploader implemented")
+        print(" File uploader implemented")
     else:
-        print("✗ File uploader MISSING")
+        print(" File uploader MISSING")
         all_found = False
     
     # Check for mode selection
-    if '"📁 Local Image Upload Mode"' in code or "'📁 Local Image Upload Mode'" in code:
-        print("✓ Local mode option in authentication")
+    if '" Local Image Upload Mode"' in code or "' Local Image Upload Mode'" in code:
+        print(" Local mode option in authentication")
     else:
-        print("✗ Local mode option MISSING")
+        print(" Local mode option MISSING")
         all_found = False
     
     return all_found
@@ -102,16 +102,16 @@ def validate_config():
     
     # Check for LOCAL_MODE flag
     if "LOCAL_MODE" in code:
-        print("✓ LOCAL_MODE configuration added")
+        print(" LOCAL_MODE configuration added")
     else:
-        print("✗ LOCAL_MODE configuration MISSING")
+        print(" LOCAL_MODE configuration MISSING")
         all_found = False
     
     # Check for validate parameter
     if "require_halo_api" in code:
-        print("✓ validate() method updated with require_halo_api parameter")
+        print(" validate() method updated with require_halo_api parameter")
     else:
-        print("✗ require_halo_api parameter MISSING from validate()")
+        print(" require_halo_api parameter MISSING from validate()")
         all_found = False
     
     return all_found
@@ -132,21 +132,21 @@ def validate_readme():
     
     # Check for local mode documentation
     if "Local Image Upload Mode" in content or "Local Mode" in content:
-        print("✓ Local mode documented")
+        print(" Local mode documented")
     else:
-        print("✗ Local mode NOT documented")
+        print(" Local mode NOT documented")
         all_found = False
     
     if "JPG, PNG, TIFF" in content or "jpg, png, tiff" in content:
-        print("✓ Supported formats documented")
+        print(" Supported formats documented")
     else:
-        print("✗ Supported formats NOT documented")
+        print(" Supported formats NOT documented")
         all_found = False
     
     if "Using Local Mode" in content or "Local mode" in content.lower():
-        print("✓ Local mode usage instructions found")
+        print(" Local mode usage instructions found")
     else:
-        print("✗ Local mode usage instructions MISSING")
+        print(" Local mode usage instructions MISSING")
         all_found = False
     
     return all_found
@@ -167,15 +167,15 @@ def validate_tests():
     
     # Check for updated tests
     if "require_halo_api" in content:
-        print("✓ Tests updated for optional Halo API")
+        print(" Tests updated for optional Halo API")
     else:
-        print("✗ Tests NOT updated for optional Halo API")
+        print(" Tests NOT updated for optional Halo API")
         all_found = False
     
     if "LOCAL_MODE" in content:
-        print("✓ Tests include LOCAL_MODE checks")
+        print(" Tests include LOCAL_MODE checks")
     else:
-        print("✗ Tests MISSING LOCAL_MODE checks")
+        print(" Tests MISSING LOCAL_MODE checks")
         all_found = False
     
     return all_found
@@ -202,7 +202,7 @@ def main():
     
     all_passed = True
     for name, passed in results:
-        status = "✓ PASS" if passed else "✗ FAIL"
+        status = " PASS" if passed else " FAIL"
         print(f"{name:.<45} {status}")
         if not passed:
             all_passed = False
@@ -210,7 +210,7 @@ def main():
     print("=" * 60)
     
     if all_passed:
-        print("\n🎉 All validations PASSED!")
+        print("\n All validations PASSED!")
         print("\nLocal mode implementation is complete and ready for testing.")
         print("\nNext steps:")
         print("  1. Install dependencies: pip install -r requirements.txt")
@@ -219,7 +219,7 @@ def main():
         print("  4. Upload test images and run analysis")
         return 0
     else:
-        print("\n⚠️  Some validations FAILED!")
+        print("\n  Some validations FAILED!")
         print("Please review the issues above.")
         return 1
 

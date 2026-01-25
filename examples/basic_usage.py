@@ -77,7 +77,7 @@ async def main():
         )
         print(f"Import {'successful' if success else 'failed'}")
     
-    print("\n✅ Example complete!")
+    print("\n Example complete!")
 
 
 if __name__ == "__main__":

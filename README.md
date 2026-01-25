@@ -1,4 +1,4 @@
-# XHaloPathAnalyzer 🔬
+# XHaloPathAnalyzer 
 
 **Web-Based GUI for Halo Digital Pathology Image Analysis**
 
@@ -6,26 +6,26 @@ A comprehensive, OS-agnostic application for custom image analysis on whole-slid
 
 ## Features
 
-- 🔐 **Secure Authentication**: Connect to Halo via GraphQL API **OR** use Local Mode
-- 📁 **Local Image Upload**: Upload JPG, PNG, TIFF images directly without Halo connection
-- 🔬 **Slide Management**: Browse, search, and select slides from Halo (API mode)
-- 🤖 **AI Analysis**: MedSAM segmentation on regions of interest or uploaded images
-- 📊 **Visualization**: Side-by-side comparison and overlay views
-- 📤 **GeoJSON Export**: Convert results to Halo-compatible annotations
-- 🖥️ **Cross-Platform**: Works on Windows, macOS, and Linux
-- 🚀 **GPU Accelerated**: Automatic CUDA/MPS detection and optimization (NVIDIA GPUs, Apple Silicon)
+-  **Secure Authentication**: Connect to Halo via GraphQL API **OR** use Local Mode
+-  **Local Image Upload**: Upload JPG, PNG, TIFF images directly without Halo connection
+-  **Slide Management**: Browse, search, and select slides from Halo (API mode)
+-  **AI Analysis**: MedSAM segmentation on regions of interest or uploaded images
+-  **Visualization**: Side-by-side comparison and overlay views
+-  **GeoJSON Export**: Convert results to Halo-compatible annotations
+-  **Cross-Platform**: Works on Windows, macOS, and Linux
+-  **GPU Accelerated**: Automatic CUDA/MPS detection and optimization (NVIDIA GPUs, Apple Silicon)
 
 ## Usage Modes
 
 XHaloPathAnalyzer supports two operating modes:
 
-### 1. 🌐 Halo API Mode (Default)
+### 1.  Halo API Mode (Default)
 - Connect to your Halo digital pathology platform
 - Browse and select slides from your Halo repository
 - Download regions of interest for analysis
 - Export results back to Halo
 
-### 2. 📁 Local Image Upload Mode (NEW!)
+### 2.  Local Image Upload Mode (NEW!)
 - **No Halo connection required**
 - Upload images directly (JPG, PNG, TIFF)
 - Analyze single or batch images
@@ -163,7 +163,7 @@ streamlit run app.py
 If you want to analyze images without connecting to Halo:
 
 1. **Start the application**: `streamlit run app.py`
-2. **Select Mode**: Choose "📁 Local Image Upload Mode" on the authentication page
+2. **Select Mode**: Choose " Local Image Upload Mode" on the authentication page
 3. **Upload Images**: Navigate to the "Image Upload" page and upload your JPG/PNG/TIFF files
 4. **Select Image**: Choose which image to analyze
 5. **Run Analysis**: Go to the "Analysis" page and click "Run Analysis"
@@ -171,7 +171,7 @@ If you want to analyze images without connecting to Halo:
 
 **Note**: Local mode does not require Halo API credentials or the `.env` file configuration.
 
-# 🔬 XHalo Path Analyzer
+#  XHalo Path Analyzer
 
 **Halo AI Workflow: A web-based GUI for digital pathology analysis**
 
@@ -182,34 +182,34 @@ If you want to analyze images without connecting to Halo:
 
 XHalo Path Analyzer is a powerful, OS-agnostic workflow tool that bridges Halo's digital pathology platform with external AI/ML capabilities. It enables researchers to:
 
-- 🔌 **Export WSIs/ROIs** from Halo via GraphQL API
-- 🤖 **Run external ML models** (e.g., MedSAM segmentation) in Python
-- 📊 **Import results back** to Halo for visualization and analysis
-- 🎨 **Process large images** using intelligent tiling strategies
-- 📄 **Generate GeoJSON** exports for interoperability
-- 🌐 **Work independently** of vendor-specific tools
+-  **Export WSIs/ROIs** from Halo via GraphQL API
+-  **Run external ML models** (e.g., MedSAM segmentation) in Python
+-  **Import results back** to Halo for visualization and analysis
+-  **Process large images** using intelligent tiling strategies
+-  **Generate GeoJSON** exports for interoperability
+-  **Work independently** of vendor-specific tools
 
 Built for exploratory AI in digital pathology, this tool provides a flexible, interactive environment for developing and deploying machine learning workflows.
 
 ## Key Features
 
-### 🔬 Digital Pathology Integration
+###  Digital Pathology Integration
 - **Halo GraphQL API Integration**: Direct connection to Halo for slide management
 - **WSI/ROI Export**: Export whole slide images and regions of interest
 - **Annotation Import**: Push AI-generated annotations back to Halo
 
-### 🤖 AI/ML Capabilities
+###  AI/ML Capabilities
 - **MedSAM Integration**: Medical Segment Anything Model for tissue segmentation
 - **Tiled Processing**: Handle large pathology images efficiently
 - **Custom Model Support**: Extensible architecture for other ML models
 
-### 🎨 Visualization & Analysis
+###  Visualization & Analysis
 - **Interactive Web UI**: Built with Streamlit for ease of use
 - **Real-time Visualization**: See segmentation results immediately
 - **Overlay Views**: Compare original images with segmentation masks
 - **Statistics**: Automatic calculation of coverage metrics
 
-### 📄 Data Export
+###  Data Export
 - **GeoJSON Export**: Industry-standard format for annotations
 - **Mask Export**: Save binary segmentation masks
 - **Halo Import**: Direct upload of results to Halo platform
@@ -511,7 +511,7 @@ For questions, issues, or contributions, please open an issue on GitHub.
 
 ---
 
-**Built with ❤️ for the digital pathology community**
+**Built with care for the digital pathology community**
 X-Halo-Patho-Analyzer
 ├── app.py                          # Main Streamlit application
 ├── setup.py                        # Package configuration
@@ -642,9 +642,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 For issues, questions, or contributions:
-- 📧 Open an issue on [GitHub](https://github.com/eisascience/XHaloPathAnalyzer/issues)
-- 📖 Check the [documentation](docs/)
-- 💬 Join discussions in the repository
+-  Open an issue on [GitHub](https://github.com/eisascience/XHaloPathAnalyzer/issues)
+-  Check the [documentation](docs/)
+-  Join discussions in the repository
 
 ## Citation
 
@@ -654,7 +654,7 @@ XHaloPathAnalyzer now includes support for Halo Link, providing OIDC discovery, 
 
 ### Prerequisites
 
-⚠️ **VPN Requirement**: You must be connected to your organization's VPN to access Halo Link services.
+ **VPN Requirement**: You must be connected to your organization's VPN to access Halo Link services.
 
 ### Configuration
 
@@ -709,42 +709,42 @@ python -m xhalo.halolink.smoketest
 ```
 
 The smoke test will:
-1. ✓ Initialize the client
-2. ✓ Perform OIDC discovery
-3. ✓ Retrieve OAuth2 token (if credentials configured)
-4. ✓ Execute a test GraphQL query
+1.  Initialize the client
+2.  Perform OIDC discovery
+3.  Retrieve OAuth2 token (if credentials configured)
+4.  Execute a test GraphQL query
 
 ### Using in Streamlit
 
 The Halo Link integration is available in the Streamlit app:
 
 1. Launch the app: `streamlit run app.py`
-2. Navigate to **⚙️ Settings** page
-3. Scroll to the **🔗 Halo Link Integration** section
+2. Navigate to ** Settings** page
+3. Scroll to the ** Halo Link Integration** section
 4. Click **Run Halo Link Smoke Test** to test your configuration
 5. View results and detailed output
 
 ### Troubleshooting
 
 **Connection Failed / Timeout**
-- ✓ Verify you're connected to VPN
-- ✓ Check `HALOLINK_BASE_URL` is correct
-- ✓ Verify the server is accessible from your network
+-  Verify you're connected to VPN
+-  Check `HALOLINK_BASE_URL` is correct
+-  Verify the server is accessible from your network
 
 **OIDC Discovery Failed**
-- ✓ Verify `HALOLINK_BASE_URL` points to the correct server
-- ✓ Ensure the server supports OIDC (has `/.well-known/openid-configuration`)
-- ✓ Check VPN connection
+-  Verify `HALOLINK_BASE_URL` points to the correct server
+-  Ensure the server supports OIDC (has `/.well-known/openid-configuration`)
+-  Check VPN connection
 
 **Token Retrieval Failed**
-- ✓ Verify `HALOLINK_CLIENT_ID` and `HALOLINK_CLIENT_SECRET` are correct
-- ✓ Check that your client credentials have not expired
-- ✓ Ensure you have proper permissions
+-  Verify `HALOLINK_CLIENT_ID` and `HALOLINK_CLIENT_SECRET` are correct
+-  Check that your client credentials have not expired
+-  Ensure you have proper permissions
 
 **GraphQL Query Failed**
-- ✓ Verify `HALOLINK_GRAPHQL_URL` or `HALOLINK_GRAPHQL_PATH` is correct
-- ✓ Check the query syntax is valid
-- ✓ Ensure your token has appropriate permissions for the query
+-  Verify `HALOLINK_GRAPHQL_URL` or `HALOLINK_GRAPHQL_PATH` is correct
+-  Check the query syntax is valid
+-  Ensure your token has appropriate permissions for the query
 
 ### Example Configuration
 
@@ -776,4 +776,4 @@ If you use this tool in your research, please cite:
 
 ---
 
-**Built for exploratory AI in digital pathology** 🔬
+**Built for exploratory AI in digital pathology** 

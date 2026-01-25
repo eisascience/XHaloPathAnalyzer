@@ -201,8 +201,8 @@ streamlit run app.py --server.port=8502
 
 ## Getting Help
 
-- 📖 [Documentation](../README.md)
-- 💬 [GitHub Issues](https://github.com/eisascience/XHaloPathAnalyzer/issues)
-- 🔍 [Examples](../examples/)
+-  [Documentation](../README.md)
+-  [GitHub Issues](https://github.com/eisascience/XHaloPathAnalyzer/issues)
+-  [Examples](../examples/)
 
-Happy analyzing! 🔬
+Happy analyzing! 

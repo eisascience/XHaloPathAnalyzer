@@ -55,14 +55,14 @@ def main():
     mask_file = "output_mask.png"
     mask_img = Image.fromarray((mask * 255).astype(np.uint8))
     mask_img.save(mask_file)
-    print(f"\n✅ Saved mask to: {mask_file}")
+    print(f"\n Saved mask to: {mask_file}")
     
     # Create overlay
     overlay_file = "output_overlay.png"
     overlay_img = overlay_mask(image, mask, alpha=0.4, color=(255, 0, 0))
     overlay_pil = Image.fromarray(overlay_img)
     overlay_pil.save(overlay_file)
-    print(f"✅ Saved overlay to: {overlay_file}")
+    print(f" Saved overlay to: {overlay_file}")
     
     # Export GeoJSON
     geojson_file = "output_annotations.geojson"
@@ -77,10 +77,10 @@ def main():
         }
     )
     save_geojson(geojson_data, geojson_file)
-    print(f"✅ Saved GeoJSON to: {geojson_file}")
+    print(f" Saved GeoJSON to: {geojson_file}")
     print(f"   Features: {len(geojson_data['features'])}")
     
-    print("\n🎉 Processing complete!")
+    print("\n Processing complete!")
 
 
 if __name__ == "__main__":

@@ -34,7 +34,7 @@ This guide provides a complete, step-by-step approach to building an **OS-agnost
 │  │ Config   │ Selection│   Data   │ (MedSAM)   │   View   │ │
 │  └──────────┴──────────┴──────────┴────────────┴──────────┘ │
 └─────────────────────────────────────────────────────────────┘
-                          ↕
+                          
 ┌─────────────────────────────────────────────────────────────┐
 │                  Python Backend Functions                    │
 │  ┌──────────────┬──────────────────┬──────────────────────┐ │
@@ -42,7 +42,7 @@ This guide provides a complete, step-by-step approach to building an **OS-agnost
 │  │  Interface   │ (large_image)    │ (MedSAM/SAM)        │ │
 │  └──────────────┴──────────────────┴──────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
-                          ↕
+                          
 ┌─────────────────────────────────────────────────────────────┐
 │              Halo Digital Pathology Platform                 │
 │     (GraphQL API @ /graphql, API Token Authentication)       │
@@ -603,7 +603,7 @@ from utils.geojson_utils import *
 # Page configuration
 st.set_page_config(
     page_title="XHaloPathAnalyzer",
-    page_icon="🔬",
+    page_icon="",
     layout="wide"
 )
 
@@ -617,7 +617,7 @@ if 'predictor' not in st.session_state:
 
 def authentication_page():
     """Authentication and configuration page"""
-    st.title("🔐 Authentication")
+    st.title(" Authentication")
     st.write("Configure your Halo API connection")
     
     endpoint = st.text_input("Halo API Endpoint", value=Config.HALO_API_ENDPOINT)
@@ -629,14 +629,14 @@ def authentication_page():
             api = HaloAPI(endpoint, token)
             st.session_state.api = api
             st.session_state.authenticated = True
-            st.success("✅ Connected successfully!")
+            st.success(" Connected successfully!")
             st.rerun()
         except Exception as e:
-            st.error(f"❌ Connection failed: {str(e)}")
+            st.error(f" Connection failed: {str(e)}")
 
 def slide_selection_page():
     """Slide selection interface"""
-    st.title("🔬 Slide Selection")
+    st.title(" Slide Selection")
     
     if st.session_state.api is None:
         st.warning("Please authenticate first")
@@ -662,7 +662,7 @@ def slide_selection_page():
 
 def analysis_page():
     """Analysis interface with MedSAM"""
-    st.title("🤖 Analysis")
+    st.title(" Analysis")
     
     if 'selected_slide' not in st.session_state:
         st.warning("Please select a slide first")
@@ -719,14 +719,14 @@ def analysis_page():
                     'roi': (x, y, width, height)
                 }
                 
-                st.success("✅ Analysis complete!")
+                st.success(" Analysis complete!")
                 
             except Exception as e:
-                st.error(f"❌ Analysis failed: {str(e)}")
+                st.error(f" Analysis failed: {str(e)}")
 
 def export_page():
     """Export results to GeoJSON"""
-    st.title("📤 Export Results")
+    st.title(" Export Results")
     
     if 'analysis_results' not in st.session_state:
         st.warning("No analysis results to export")
@@ -751,7 +751,7 @@ def export_page():
             output_path = f"{Config.TEMP_DIR}/annotations.geojson"
             save_geojson(geojson, output_path)
             
-            st.success(f"✅ Exported {len(polygons)} objects")
+            st.success(f" Exported {len(polygons)} objects")
             st.json(geojson)
             
             # Download button
@@ -1587,7 +1587,7 @@ api = HaloAPI(
 
 # Test connection
 if asyncio.run(api.test_connection()):
-    print("✅ Connected to Halo")
+    print(" Connected to Halo")
 ```
 
 ### Step 2: Browse and Select Slides
@@ -1777,7 +1777,7 @@ async def main():
     # 6. Upload
     result = await api.upload_annotations(selected['id'], geojson)
     
-    print(f"✅ Complete! Processed {selected['name']}")
+    print(f" Complete! Processed {selected['name']}")
     print(f"   Objects: {len(polygons)}")
     print(f"   Annotation ID: {result['id']}")
 
@@ -1795,4 +1795,4 @@ The modular architecture makes it easy to extend with custom models, additional 
 
 For support, bug reports, or feature requests, please visit the project repository or contact the development team.
 
-**Happy Analyzing! 🔬**
+**Happy Analyzing! **
